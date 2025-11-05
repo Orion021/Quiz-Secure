@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Touch-circle guarded iframe — 180s → 20s</title>
+<title>Iframe — Phase1 180s then Phase2 20s touch guard</title>
 <style>
   :root{
     --bg:#071021; --muted:#9fb0bf; --accent:#06b6d4; --danger:#ff6b6b;
   }
-  html,body{ height:100%; margin:0; font-family:Inter,system-ui,Roboto,Arial; background:var(--bg); color:#eaf6fb; -webkit-font-smoothing:antialiased; }
+  html,body{ height:100%; margin:0; font-family:Inter,system-ui,Roboto,Arial; background:var(--bg); color:#eaf6fb; }
   .wrap{ min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px; box-sizing:border-box; }
 
   h1{ font-size:18px; margin:6px 0; font-weight:600; text-align:center; }
@@ -20,7 +20,9 @@
   }
   button{ padding:10px 12px; border-radius:8px; border:0; background:var(--accent); color:#001; font-weight:700; }
 
-  /* IFRAME container sized 90vw x 90vh */
+  .infoRow{ width:95vw; max-width:1100px; display:flex; justify-content:space-between; color:var(--muted); font-size:13px; }
+
+  /* iframe container sized 90vw x 90vh */
   .frameOuter{
     width:90vw; height:90vh; max-width:1100px; max-height:1200px;
     border-radius:10px; overflow:hidden; position:relative; background:#04121a;
@@ -28,31 +30,11 @@
     display:flex; align-items:center; justify-content:center;
     touch-action:none;
   }
-
-  iframe{
-    width:100%; height:100%; border:0; display:block; background:white;
-    -webkit-user-select:none; user-select:none; touch-action:none;
-  }
+  iframe{ width:100%; height:100%; border:0; display:block; background:white; touch-action:none; -webkit-user-select:none; user-select:none; }
 
   .emptyNotice{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); padding:16px; text-align:center; pointer-events:none; }
 
-  /* Floating circle (movable). 80% transparent -> opacity:0.2 */
-  .floatCircle{
-    position:absolute;
-    width:120px; height:120px; border-radius:50%;
-    background: rgba(6,182,212,0.12); /* slightly tinted */
-    border: 2px solid rgba(6,182,212,0.2);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-    display:flex; align-items:center; justify-content:center;
-    touch-action:none; /* we'll manage pointer events */
-    z-index:60;
-    user-select:none;
-    -webkit-user-select:none;
-  }
-  .floatCircle .label { font-size:12px; color:var(--muted); text-align:center; pointer-events:none; padding:6px; }
-  .floatCircle .grip { position:absolute; bottom:6px; right:6px; width:18px; height:18px; border-radius:4px; background:rgba(0,0,0,0.12); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); }
-
-  /* Overlay that warns when user lifts finger from the circle */
+  /* overlay */
   .overlay{
     position:absolute; inset:0; background:linear-gradient(180deg, rgba(2,6,10,0.75), rgba(2,6,10,0.9));
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
@@ -63,8 +45,6 @@
   .overlay .msg{ color:var(--muted); max-width:90%; }
   .overlay .count{ font-size:36px; font-weight:800; color:var(--accent); }
 
-  .infoRow{ width:95vw; max-width:1100px; display:flex; justify-content:space-between; color:var(--muted); font-size:13px; }
-
   @media(min-width:900px){
     .frameOuter{ width:75vw; height:75vh; }
   }
@@ -72,44 +52,36 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Keep touching the floating circle — Phase1: 180s → Phase2: 20s</h1>
+    <h1>Iframe — Phase1 180s → Phase2 20s touch guard</h1>
 
     <div class="controls">
-      <input id="urlInput" type="url" placeholder="Enter URL (https://example.com)" value="https://example.com">
+      <input id="urlInput" type="url" placeholder="Enter URL (https://example.com)">
       <button id="openBtn">Open</button>
       <button id="clearBtn">Clear</button>
     </div>
 
     <div class="infoRow">
       <div id="phaseLabel">Phase: idle</div>
-      <div id="timeInfo">Remaining before clear: —</div>
+      <div id="phaseSwitch">Time until Phase 2: —</div>
     </div>
 
     <div class="frameOuter" id="frameOuter" aria-live="polite">
-      <div id="emptyNotice" class="emptyNotice">Iframe is empty. Enter a URL and tap Open.</div>
+      <div id="emptyNotice" class="emptyNotice">Iframe is empty. Enter URL and tap Open.</div>
 
       <iframe id="theFrame" style="display:none" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
 
-      <!-- floating circle initially bottom-right of frameOuter -->
-      <div id="floatCircle" class="floatCircle" style="right:12px; bottom:12px;" role="button" aria-label="Touch and hold circle">
-        <div class="label">Touch & hold</div>
-        <div class="grip">☰</div>
-      </div>
-
-      <!-- overlay shown when user lifts finger from circle -->
       <div id="overlay" class="overlay hidden" aria-hidden="true">
-        <div class="title">Touch the circle to continue</div>
-        <div class="msg">You moved your finger away from the required area. Touch the floating circle again within the countdown to continue using the page.</div>
+        <div class="title">Touch the page to continue</div>
+        <div class="msg">You moved your finger away. Touch inside the page within the countdown to continue using it.</div>
         <div class="count" id="overlayCountdown">20</div>
         <div class="msg small" style="font-size:13px; color:var(--muted)">If you don't touch in time the page will be cleared.</div>
       </div>
     </div>
-
   </div>
 
 <script>
 (() => {
-  // Elements
+  // elements
   const openBtn = document.getElementById('openBtn');
   const clearBtn = document.getElementById('clearBtn');
   const urlInput = document.getElementById('urlInput');
@@ -118,36 +90,23 @@
   const frameOuter = document.getElementById('frameOuter');
   const overlay = document.getElementById('overlay');
   const overlayCountdownEl = document.getElementById('overlayCountdown');
-  const floatCircle = document.getElementById('floatCircle');
   const phaseLabel = document.getElementById('phaseLabel');
-  const timeInfo = document.getElementById('timeInfo');
+  const phaseSwitch = document.getElementById('phaseSwitch');
 
-  // Configuration
-  const PHASE1_ALLOW = 180.0;       // seconds allowed untouched in Phase1
-  const PHASE2_ALLOW = 20.0;        // seconds allowed untouched in Phase2
-  const PHASE1_DURATION_MS = 180000; // 180s until phase switch (ms)
-  const TICK_MS = 100;               // ticker interval
+  // config
+  const PHASE1_MS = 180000; // 180 seconds
+  const PHASE2_ALLOW = 20.0; // 20 seconds
+  const TICK_MS = 100;
 
-  // State
+  // state
   let sessionActive = false;
-  let openTime = null;          // ms when opened
-  let phase = 'idle';           // 'idle' | 'phase1' | 'phase2' | 'cleared'
-  let currentAllow = PHASE1_ALLOW; // current allowed seconds (depends on phase)
-  let untouchedTimer = PHASE1_ALLOW; // remaining time while not pressed
-  let isPressedCircle = false;
+  let openTime = null;
+  let inPhase2 = false;
+  let isTouchingIframe = false;
+  let overlayRemaining = PHASE2_ALLOW;
+  let mainInterval = null;
 
-  // Overlay specific timer/interval
-  let overlayInterval = null;
-
-  // Draggable state for floating circle
-  let dragging = false;
-  let dragPointerId = null;
-  let startPointer = {x:0,y:0};
-  let startRect = {left:0,top:0};
-  // the circle is positioned absolutely relative to frameOuter via style.left/top or right/bottom - we'll use left/top
-  // ensure frameOuter is positioned relative (it is)
-
-  // Utility: validate and normalize URL
+  // helpers
   function normalizeUrl(raw){
     if(!raw) return null;
     let s = raw.trim();
@@ -155,33 +114,36 @@
     try { new URL(s); return s; } catch(e) { return null; }
   }
 
-  // Phase helpers
-  function setPhase(p) {
-    phase = p;
-    phaseLabel.textContent = (p === 'phase1') ? 'Phase 1 (180s allowed)' :
-                             (p === 'phase2') ? 'Phase 2 (20s allowed)' :
-                             (p === 'cleared') ? 'cleared' : 'idle';
+  function setPhaseLabel(p) {
+    phaseLabel.textContent = p;
+  }
+  function updatePhaseSwitchUI() {
+    if(!sessionActive || !openTime || inPhase2) {
+      phaseSwitch.textContent = 'Time until Phase 2: —';
+      return;
+    }
+    const msLeft = Math.max(0, PHASE1_MS - (Date.now() - openTime));
+    phaseSwitch.textContent = 'Time until Phase 2: ' + (msLeft/1000).toFixed(0) + 's';
   }
 
-  function updateTimeInfo() {
-    timeInfo.textContent = `Remaining before clear: ${untouchedTimer.toFixed(1)}s`;
-  }
-
-  // Start/stop session
-  function openUrl(raw) {
-    const url = normalizeUrl(raw);
-    if(!url) { alert('Please enter a valid URL (include protocol or domain).'); return; }
+  // open/clear iframe
+  function openUrl() {
+    const url = normalizeUrl(urlInput.value || '');
+    if(!url) { alert('Please enter a valid URL'); return; }
     iframe.src = url;
     iframe.style.display = 'block';
     emptyNotice.style.display = 'none';
     sessionActive = true;
     openTime = Date.now();
-    setPhase('phase1');
-    currentAllow = PHASE1_ALLOW;
-    untouchedTimer = currentAllow;
-    hideOverlay();
-    startTicker();
-    // position floatCircle initially if not set (we keep style right/bottom on load)
+    inPhase2 = false;
+    isTouchingIframe = false;
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden','true');
+    overlayRemaining = PHASE2_ALLOW;
+    setPhaseLabel('Phase 1 (no touch required)');
+    startMainInterval();
+    // bring iframe into view on mobile
+    frameOuter.scrollIntoView({behavior:'smooth', block:'center'});
   }
 
   function clearIframe() {
@@ -190,198 +152,132 @@
     emptyNotice.style.display = '';
     sessionActive = false;
     openTime = null;
-    setPhase('cleared');
-    stopTicker();
-    hideOverlay();
-    untouchedTimer = PHASE1_ALLOW;
-    updateTimeInfo();
+    inPhase2 = false;
+    isTouchingIframe = false;
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden','true');
+    overlayRemaining = PHASE2_ALLOW;
+    setPhaseLabel('cleared');
+    stopMainInterval();
+    updatePhaseSwitchUI();
   }
 
-  // Overlay show/hide; overlayCountdown mirrors untouchedTimer when not pressed
+  // show/hide overlay
   function showOverlay() {
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden','false');
-    // start/continue overlay countdown (overlay will follow untouchedTimer via ticker)
-    // show initial value
-    overlayCountdownEl.textContent = Math.ceil(untouchedTimer);
+    overlayCountdownEl.textContent = Math.ceil(overlayRemaining);
   }
   function hideOverlay() {
     overlay.classList.add('hidden');
     overlay.setAttribute('aria-hidden','true');
-    stopOverlayInterval();
-  }
-  function stopOverlayInterval() {
-    if (overlayInterval) { clearInterval(overlayInterval); overlayInterval = null; }
+    overlayCountdownEl.textContent = Math.ceil(PHASE2_ALLOW);
   }
 
-  // Central ticker that tracks allowed time when not pressed and phase switching
-  let mainTicker = null;
-  function startTicker() {
-    if (mainTicker) return;
-    mainTicker = setInterval(() => {
-      // handle phase switch
-      if (phase === 'phase1' && openTime) {
-        const elapsed = Date.now() - openTime;
-        if (elapsed >= PHASE1_DURATION_MS) {
-          // switch to phase 2
-          setPhase('phase2');
-          currentAllow = PHASE2_ALLOW;
-          if (untouchedTimer > currentAllow) untouchedTimer = currentAllow;
+  // main interval: handles phase switch and overlay countdown
+  function startMainInterval(){
+    if (mainInterval) return;
+    mainInterval = setInterval(()=>{
+      if(!sessionActive) return;
+
+      // Phase switch
+      if(!inPhase2 && openTime && (Date.now() - openTime >= PHASE1_MS)) {
+        inPhase2 = true;
+        overlayRemaining = PHASE2_ALLOW;
+        setPhaseLabel('Phase 2 (touch required if you release)');
+
+        // If user is NOT touching iframe at the instant phase2 begins -> show overlay immediately
+        if(!isTouchingIframe) {
+          showOverlay();
+        } else {
+          hideOverlay();
         }
       }
 
-      if (!sessionActive || phase === 'cleared' || phase === 'idle') {
-        // nothing to do
-        updateTimeInfo();
-        return;
-      }
+      updatePhaseSwitchUI();
 
-      if (!isPressedCircle) {
-        untouchedTimer -= (TICK_MS / 1000);
-        if (untouchedTimer <= 0) {
-          untouchedTimer = 0;
-          updateTimeInfo();
-          // time's up: clear iframe
+      // Only count down overlay in Phase2 when overlay is visible (i.e., when user is not touching)
+      if(inPhase2 && !isTouchingIframe) {
+        // overlay may already be visible; ensure overlayRemaining decrements
+        overlayRemaining -= (TICK_MS / 1000);
+        if(overlayRemaining <= 0) {
+          // time's up -> clear iframe
+          overlayRemaining = 0;
+          overlayCountdownEl.textContent = '0';
           clearIframe();
           return;
         } else {
-          // show overlay whenever not pressed
+          overlayCountdownEl.textContent = Math.ceil(overlayRemaining);
+          // ensure overlay visible
           showOverlay();
-          overlayCountdownEl.textContent = Math.ceil(untouchedTimer);
         }
       } else {
-        // while pressed, keep untouchedTimer reset to full allowance of current phase
-        untouchedTimer = currentAllow;
-        // hide overlay when pressed
-        hideOverlay();
+        // if user is touching or not yet in phase2, keep overlay hidden and reset remaining to full allowance
+        overlayRemaining = PHASE2_ALLOW;
+        // don't show overlay in phase1
       }
-
-      updateTimeInfo();
     }, TICK_MS);
   }
-  function stopTicker() {
-    if (mainTicker) { clearInterval(mainTicker); mainTicker = null; }
+  function stopMainInterval(){
+    if(mainInterval) { clearInterval(mainInterval); mainInterval = null; }
   }
 
-  // Pointer handlers for the floating circle:
-  // - pointerdown = start press AND possibly start drag
-  // - pointermove = while pointerdown, calculate movement; if movement > threshold -> dragging
-  // - pointerup / pointercancel = end press and drag
-  //
-  // We treat any pointerdown inside circle as a "press" which resets timers and hides overlay.
-  // Dragging is allowed while pointer is down; the press is still considered active.
-
-  function onCirclePointerDown(e) {
-    // Only primary pointer
+  // Event handling on iframe element:
+  // - pointerdown on iframe -> user touched inside -> hide overlay and mark isTouchingIframe = true
+  // - pointerup / pointercancel / pointerleave -> user lifted or left -> mark false; if in phase2 start overlay countdown (handled by ticker)
+  // Note: pointer events on iframe element rely on modern browsers. Add touch fallbacks.
+  function onIframePointerDown(e) {
+    // only primary
     if (e.isPrimary === false) return;
-    floatCircle.setPointerCapture(e.pointerId);
-    dragPointerId = e.pointerId;
-    startPointer = {x: e.clientX, y: e.clientY};
-    // compute startRect (position relative to frameOuter)
-    const parentRect = frameOuter.getBoundingClientRect();
-    const style = window.getComputedStyle(floatCircle);
-    // derive numeric left/top from style; if style uses right/bottom, convert to left/top
-    let left = floatCircle.offsetLeft;
-    let top = floatCircle.offsetTop;
-    startRect = { left: left, top: top, parentLeft: parentRect.left, parentTop: parentRect.top };
-    dragging = false;
-
-    // treat as press
-    isPressedCircle = true;
-    // reset timer for current phase allowance
-    currentAllow = (phase === 'phase2') ? PHASE2_ALLOW : PHASE1_ALLOW;
-    untouchedTimer = currentAllow;
+    isTouchingIframe = true;
     hideOverlay();
-    // prevent default behaviour
-    e.preventDefault();
   }
-
-  function onCirclePointerMove(e) {
-    if (dragPointerId !== e.pointerId) return;
-    const dx = e.clientX - startPointer.x;
-    const dy = e.clientY - startPointer.y;
-    const moveDist = Math.hypot(dx, dy);
-    // threshold to start dragging (so tiny moves are treated as hold)
-    const DRAG_THRESHOLD = 6;
-    if (!dragging && moveDist > DRAG_THRESHOLD) dragging = true;
-
-    if (dragging) {
-      // compute new left/top relative to frameOuter
-      const parentRect = frameOuter.getBoundingClientRect();
-      let newLeft = startRect.left + dx;
-      let newTop = startRect.top + dy;
-      // clamp within parent bounds
-      const circleW = floatCircle.offsetWidth;
-      const circleH = floatCircle.offsetHeight;
-      newLeft = Math.max(0, Math.min(newLeft, parentRect.width - circleW));
-      newTop  = Math.max(0, Math.min(newTop, parentRect.height - circleH));
-      // apply transform via left/top style
-      floatCircle.style.left = newLeft + 'px';
-      floatCircle.style.top  = newTop + 'px';
-      // clear any right/bottom styles (so it sticks to left/top)
-      floatCircle.style.right = 'auto';
-      floatCircle.style.bottom = 'auto';
-    }
+  function onIframePointerUp(e) {
+    // pointer released (possibly still inside element). Mark as not touching.
+    isTouchingIframe = false;
+    // If phase2 active, overlay will be shown immediately by ticker (or next tick)
   }
+  function onIframePointerCancel(e) { isTouchingIframe = false; }
+  function onIframePointerLeave(e) { isTouchingIframe = false; }
 
-  function onCirclePointerUp(e) {
-    if (dragPointerId === e.pointerId) {
-      try { floatCircle.releasePointerCapture(e.pointerId); } catch(_) {}
-      dragPointerId = null;
-    }
-    // end press
-    isPressedCircle = false;
-    // when user lifts, overlay will be shown by the ticker because not pressed
-    dragging = false;
-  }
+  // Attach pointer and touch events
+  iframe.addEventListener('pointerdown', onIframePointerDown, {passive:true});
+  iframe.addEventListener('pointerup', onIframePointerUp, {passive:true});
+  iframe.addEventListener('pointercancel', onIframePointerCancel, {passive:true});
+  iframe.addEventListener('pointerleave', onIframePointerLeave, {passive:true});
+  // touch fallback
+  iframe.addEventListener('touchstart', (e)=>{ isTouchingIframe = true; hideOverlay(); }, {passive:true});
+  iframe.addEventListener('touchend', (e)=>{ isTouchingIframe = false; }, {passive:true});
+  iframe.addEventListener('touchcancel', (e)=>{ isTouchingIframe = false; }, {passive:true});
 
-  // Also add touch fallback events (some browsers)
-  // But primary flow uses pointer events (recommended)
-
-  // Attach pointer listeners to floatCircle
-  floatCircle.addEventListener('pointerdown', onCirclePointerDown);
-  window.addEventListener('pointermove', onCirclePointerMove);
-  window.addEventListener('pointerup', onCirclePointerUp);
-  window.addEventListener('pointercancel', onCirclePointerUp);
+  // If the user touches the overlay itself we do nothing (they must touch the iframe)
+  overlay.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive:false});
 
   // Buttons
-  openBtn.addEventListener('click', () => {
-    openUrl(urlInput.value);
-  });
-  clearBtn.addEventListener('click', () => {
-    clearIframe();
-  });
-  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') openUrl(urlInput.value); });
+  openBtn.addEventListener('click', openUrl);
+  clearBtn.addEventListener('click', clearIframe);
+  urlInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') openUrl(); });
 
-  // If overlay is visible and user touches the circle (pointerdown), we hide overlay (handled in onCirclePointerDown).
-  // Additionally, if overlay is visible and user taps the overlay area (not circle), do nothing — they must touch circle.
-
-  // When iframe loads, reset touch state to require a new touch on circle
-  iframe.addEventListener('load', () => {
-    // we require the user to press the circle to confirm presence
-    isPressedCircle = false;
-    untouchedTimer = currentAllow;
-    hideOverlay();
-    updateTimeInfo();
-  });
-
-  // page visibility: if user switches away, treat as release (start overlay)
+  // Visibility change: if user leaves app, treat as release (so overlay may show when they return)
   document.addEventListener('visibilitychange', () => {
-    if (!sessionActive) return;
-    if (document.hidden) {
-      // mark as released
-      isPressedCircle = false;
-      // ticker will show overlay
-    } else {
-      // on resume, overlay may already be active if they left
+    if(!sessionActive) return;
+    if(document.hidden) {
+      isTouchingIframe = false;
     }
   });
 
-  // Initialize UI
+  // When iframe loads, we require fresh touch only after phase2 starts. For phase1 nothing changes.
+  iframe.addEventListener('load', () => {
+    // Reset overlayRemaining in case previously altered
+    overlayRemaining = PHASE2_ALLOW;
+    // Do not force overlay in phase1
+    if(!inPhase2) hideOverlay();
+  });
+
+  // init
   (function init(){
-    setPhase('idle');
-    untouchedTimer = PHASE1_ALLOW;
-    updateTimeInfo();
+    setPhaseLabel('idle');
+    updatePhaseSwitchUI();
   })();
 
 })();
