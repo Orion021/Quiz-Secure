@@ -12,7 +12,6 @@
     html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#081426);color:var(--text);font-family:Inter,system-ui,Arial;}
     .app{min-height:100vh;display:flex;flex-direction:column;align-items:center}
 
-    /* Header - 10% height */
     header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;box-sizing:border-box;background:rgba(255,255,255,0.02);backdrop-filter:blur(4px);border-bottom:1px solid rgba(255,255,255,0.03)}
     .title{display:flex;flex-direction:column}
     .title h1{margin:0;font-size:1.05rem}
@@ -33,13 +32,8 @@
     .frame-wrap{width:100%;height:70vh;background:rgba(255,255,255,0.01);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.03);position:relative}
     iframe{width:100%;height:100%;border-radius:12px;border:0;background:white}
 
-    /* Spinner overlay when refreshing iframe */
-    .spinner-overlay{
-      position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.33);backdrop-filter:blur(2px);z-index:10;border-radius:12px;
-    }
-    .spinner{
-      width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,0.12);border-top-color:var(--accent);animation:spin 1s linear infinite;
-    }
+    .spinner-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.33);backdrop-filter:blur(2px);z-index:10;border-radius:12px;}
+    .spinner{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,0.12);border-top-color:var(--accent);animation:spin 1s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
 
     .touch-wrap{width:100%;display:flex;justify-content:center}
@@ -78,13 +72,17 @@
       <div id="stage" class="stage" aria-live="polite">
         <div id="initialUrl" class="url-row" aria-label="URL input area">
           <input id="urlInput" type="url" placeholder="https://example.com" aria-label="Enter a URL to load" />
-          <!-- explicitly type="button" so it never submits/refreshes the parent -->
           <button id="loadBtn" type="button" aria-label="Load URL">Load</button>
           <button id="refreshBtn" type="button" class="secondary" aria-label="Refresh iframe" disabled>Refresh</button>
         </div>
       </div>
 
-      <div class="note">Flow: enter URL → iframe opens (70vh) above the URL bar → touch button below (15vh). After iframe loads, 2:30 grace. After that: monitoring phase — the 20s countdown runs only while the button is NOT touched. Touching resets & freezes it at 20s. If it reaches 0 the iframe clears. Use Refresh to reload only the iframe page (spinner shows while reloading).</div>
+      <div class="note">
+        Flow: enter URL → iframe opens (70vh) above the URL bar → touch button below (15vh).
+        After iframe loads, 2:30 grace. After that: monitoring phase — the 20s countdown runs only while the button is NOT touched.
+        Touching resets & freezes it at 20s. If it reaches 0 the iframe clears.
+        <br><strong>Note:</strong> If the quiz site is cross-origin (hosted on a different domain), the browser blocks reading the iframe's current URL for security — in that case the Refresh button cannot discover the current question URL and will fall back to reloading the original URL (which may go back to registration). See options below.
+      </div>
     </main>
   </div>
 
@@ -100,7 +98,7 @@
 
   let iframeEl = null;
   let touchPad = null;
-  let loadedUrl = null; // remember the plain URL loaded in iframe
+  let loadedUrl = null; // original URL that was loaded into iframe
 
   let mainCountdownInterval = null;
   const MAIN_SECONDS = 150; // 2:30
@@ -171,13 +169,12 @@
 
     iframeEl.addEventListener('load', ()=> {
       startMainCountdown();
-      // when iframe finishes load, if we were refreshing, end refresh state
       if(isRefreshing){
         endIframeRefreshing();
       }
     });
 
-    // fallback start if load doesn't fire (some cross-origin pages may not trigger load as expected)
+    // fallback start if load doesn't fire
     setTimeout(()=>{ if(!mainCountdownInterval) startMainCountdown(); }, 1200);
   }
 
@@ -209,10 +206,6 @@
     }, 1000);
   }
 
-  // Phase 2 behavior:
-  // - countdownMs decrements ONLY while button is NOT touched.
-  // - If user touches the button: countdownMs resets to 20000 and freezes.
-  // - If user releases: countdown resumes from 20000 down to 0.
   function enterPhase2(){
     phase2Active = true;
     setPhase('monitoring');
@@ -277,7 +270,6 @@
     if(!touchPad) return;
 
     const startHandler = (ev)=>{
-      // When user touches/presses: mark touching, reset countdown to full and freeze
       isTouching = true;
       countdownMs = MONITOR_LIMIT_MS;
       touchPad.classList.add('active');
@@ -285,21 +277,17 @@
     };
 
     const endHandler = (ev)=>{
-      // On release: stop touching and let countdown resume
       isTouching = false;
       touchPad.classList.remove('active');
     };
 
-    // Mouse
     touchPad.addEventListener('mousedown', (e)=>{ if(phase2Active) startHandler(e); });
     window.addEventListener('mouseup', (e)=>{ if(phase2Active && isTouching) endHandler(e); });
 
-    // Touch (mobile)
     touchPad.addEventListener('touchstart', (e)=>{ if(phase2Active) startHandler(e); }, {passive:false});
     touchPad.addEventListener('touchend', (e)=>{ if(phase2Active) endHandler(e); }, {passive:true});
     touchPad.addEventListener('touchcancel', (e)=>{ if(phase2Active) endHandler(e); }, {passive:true});
 
-    // Keyboard
     touchPad.addEventListener('keydown', (e)=>{
       if(!phase2Active) return;
       if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); if(!isTouching) startHandler(e); }
@@ -309,7 +297,6 @@
       if(e.key === ' ' || e.key === 'Enter'){ endHandler(e); }
     });
 
-    // click as interaction (resets countdown)
     touchPad.addEventListener('click', (e)=>{
       if(phase2Active){
         countdownMs = MONITOR_LIMIT_MS;
@@ -318,16 +305,13 @@
   }
 
   // -------------------------
-  // Refresh (iframe-only) logic
+  // Refresh (iframe-only) logic — updated to try to preserve current iframe URL
   // -------------------------
   function beginIframeRefreshing(){
     if(!iframeEl) return;
-    // Add spinner overlay
     const frameWrap = iframeEl.closest('.frame-wrap');
     if(!frameWrap) return;
-    // if overlay already exists, don't add again
     if(frameWrap.querySelector('.spinner-overlay')) return;
-
     const overlay = document.createElement('div');
     overlay.className = 'spinner-overlay';
     overlay.innerHTML = '<div class="spinner" aria-hidden="true"></div>';
@@ -348,41 +332,40 @@
   }
 
   function reloadIframe(event){
-    // prevent parent navigation
     if(event && typeof event.preventDefault === 'function') event.preventDefault();
     if(event && typeof event.stopPropagation === 'function') event.stopPropagation();
 
-    if(!iframeEl || !loadedUrl) return;
+    if(!iframeEl) return;
+
     beginIframeRefreshing();
 
+    // Try to read the iframe's current location (works only if same-origin).
     try {
-      // try same-origin reload first
-      if(iframeEl.contentWindow && typeof iframeEl.contentWindow.location.reload === 'function'){
-        // call reload and end refreshing after load event (iframe 'load' listener handles end)
-        try {
-          iframeEl.contentWindow.location.reload();
-          return;
-        } catch(err) {
-          // if reload call throws (rare), fall back
-        }
+      const currentHref = iframeEl.contentWindow.location.href; // MAY THROW if cross-origin
+      // If we got here, same-origin: reload that exact URL (keeps student on current question)
+      try {
+        // use reload() so that history/sessions inside iframe are handled naturally
+        iframeEl.contentWindow.location.reload();
+        return;
+      } catch(err){
+        // If reload fails, fallback to assigning currentHref
+        iframeEl.src = currentHref;
+        return;
       }
-    } catch(err) {
-      // cross-origin access blocked -> fallback below
+    } catch(err){
+      // Cross-origin or access denied — cannot read current page URL.
+      // FALLBACK: reload original loadedUrl with cache-buster. This may go back to registration.
+      try {
+        const hasQuery = loadedUrl && loadedUrl.indexOf('?') !== -1;
+        const sep = hasQuery ? '&' : '?';
+        iframeEl.src = (loadedUrl || iframeEl.src) + sep + '_r=' + Date.now();
+      } catch(e){
+        // last resort: reassign existing src (may or may not reload)
+        try { iframeEl.src = iframeEl.src; } catch(_) { endIframeRefreshing(); }
+      }
     }
 
-    // Fallback: reassign src with cache-buster so iframe reloads without touching parent.
-    try {
-      // Do not mutate loadedUrl; build a cache-busted URL
-      const hasQuery = loadedUrl.indexOf('?') !== -1;
-      const sep = hasQuery ? '&' : '?';
-      iframeEl.src = loadedUrl + sep + '_r=' + Date.now();
-      // load event will remove spinner
-    } catch(e){
-      // last-resort: reassign to original URL (may or may not reload)
-      try { iframeEl.src = loadedUrl; } catch(_) { endIframeRefreshing(); }
-    }
-
-    // As a safety, if load event doesn't fire (some cross-origin quirks), remove overlay after 8s
+    // safety: if load event doesn't fire (cross-origin quirks), remove spinner after 8s
     setTimeout(()=>{ if(isRefreshing) endIframeRefreshing(); }, 8000);
   }
 
