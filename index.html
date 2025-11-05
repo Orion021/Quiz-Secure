@@ -5,49 +5,39 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Quiz Guard</title>
   <style>
-    :root{
-      --bg:#0f1724; --card:#0b1220; --accent:#06b6d4; --muted:#94a3b8; --danger:#fb7185;
-    }
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#e6eef6;background:linear-gradient(180deg,#071022 0%, #081426 100%);}
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--danger:#fb7185}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#e6eef6;background:linear-gradient(180deg,#071022 0%, #081426 100%)}
     .app{min-height:100vh;display:flex;flex-direction:column;align-items:center}
-    header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-sizing:border-box;background:rgba(255,255,255,0.02);backdrop-filter:blur(4px);}
+    header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-sizing:border-box;background:rgba(255,255,255,0.02);backdrop-filter:blur(4px)}
     .title{display:flex;flex-direction:column}
-    .title h1{margin:0;font-size:1.1rem;letter-spacing:0.4px}
+    .title h1{margin:0;font-size:1.1rem}
     .subtitle{font-size:0.85rem;color:var(--muted)}
-
     .timers{display:flex;gap:16px;align-items:center}
     .timer{padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.02);min-width:120px;text-align:center}
     .timer .label{font-size:0.75rem;color:var(--muted)}
     .timer .value{font-weight:700;font-size:1.0rem}
-
     main{width:100%;display:flex;flex-direction:column;align-items:center;gap:18px;padding:16px;box-sizing:border-box}
 
     .url-card{width:90vw;max-width:980px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:14px;box-shadow:0 6px 24px rgba(2,6,23,0.6);display:flex;gap:8px;align-items:center}
     .url-card input{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:1rem}
     .url-card button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#022;cursor:pointer;font-weight:700}
 
-    .frame-wrap{width:90vw;max-width:980px;height:75vh;display:flex;align-items:center;justify-content:center;}
-    iframe{width:100%;height:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 10px 40px rgba(2,6,23,0.6);}
+    .frame-wrap{width:90vw;max-width:980px;height:75vh;display:flex;align-items:center;justify-content:center}
+    iframe{width:100%;height:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 10px 40px rgba(2,6,23,0.6)}
 
     .holder{width:90vw;max-width:980px;display:flex;justify-content:center}
     .touch-holder{display:none;user-select:none}
     .touch-pad{width:100%;padding:18px;border-radius:12px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border:2px solid rgba(255,255,255,0.04);text-align:center;font-weight:700}
     .touch-pad.active{box-shadow:0 6px 30px rgba(6,182,212,0.12);border-color:var(--accent)}
     .touch-pad.blink{animation:blink 1s infinite;border-color:var(--danger);box-shadow:0 0 18px rgba(251,113,133,0.18)}
+    @keyframes blink{0%{opacity:1}50%{opacity:0.35}100%{opacity:1}}
 
-    @keyframes blink{ 0%{opacity:1} 50%{opacity:0.35} 100%{opacity:1} }
-
-    .progress{height:10px;border-radius:999px;background:rgba(255,255,255,0.03);overflow:hidden;margin-top:8px}
-    .bar{height:100%;width:0%}
+    .progress-bar{height:14px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden;width:100%}
+    .progress-inner{height:100%;width:100%;background:linear-gradient(90deg,var(--accent),var(--danger));transform-origin:left;}
+    .time-label{margin-left:12px;font-weight:700}
 
     .muted-note{font-size:0.85rem;color:var(--muted);margin-top:8px;text-align:center}
-
-    /* responsive tweaks */
-    @media (max-width:720px){
-      .url-card{padding:12px}
-      .timer{min-width:90px}
-      header{padding:0 12px}
-    }
+    @media (max-width:720px){.url-card{padding:12px}.timer{min-width:90px}header{padding:0 12px}}
   </style>
 </head>
 <body>
@@ -55,22 +45,16 @@
     <header>
       <div class="title">
         <h1>Quiz Guard</h1>
-        <div class="subtitle">Enter a URL below to load it in the protected iframe</div>
+        <div class="subtitle">Load URL → 20s preview → touch-and-hold to keep the iframe</div>
       </div>
       <div class="timers">
-        <div class="timer">
-          <div class="label">Phase</div>
-          <div id="phase" class="value">idle</div>
-        </div>
-        <div class="timer">
-          <div class="label">Timer</div>
-          <div id="countdown" class="value">--:--</div>
-        </div>
+        <div class="timer"><div class="label">Phase</div><div id="phase" class="value">idle</div></div>
+        <div class="timer"><div class="label">Timer</div><div id="countdown" class="value">--:--</div></div>
       </div>
     </header>
 
     <main>
-      <div class="url-card" role="region" aria-label="URL loader">
+      <div id="urlCard" class="url-card" role="region" aria-label="URL loader">
         <input id="urlInput" type="url" placeholder="https://example.com" aria-label="URL to load" />
         <button id="loadBtn">Load</button>
       </div>
@@ -81,9 +65,8 @@
 
       <div class="holder">
         <div class="touch-holder" id="touchHolder">
-          <div id="touchPad" class="touch-pad" tabindex="0">Touch the pad whenever visible. After 2:30 you must not leave it untouched for more than 20s.</div>
-          <div class="progress"><div id="pressBar" class="bar" style="background:linear-gradient(90deg,var(--accent),var(--danger));"></div></div>
-          <div class="muted-note">On desktop: click and hold briefly each interval. On mobile: tap and hold. If untouched for 20s, iframe will clear.</div>
+          <div id="touchPad" class="touch-pad" tabindex="0">Touch & hold here to keep the iframe (phase 2)</div>
+          <div class="muted-note">In phase 2: if you release the button at any time, the iframe will be cleared.</div>
         </div>
       </div>
 
@@ -94,98 +77,24 @@
 (function(){
   const loadBtn = document.getElementById('loadBtn');
   const urlInput = document.getElementById('urlInput');
+  const urlCard = document.getElementById('urlCard');
   const frameWrap = document.getElementById('frameWrap');
-  const placeholder = document.getElementById('placeholder');
   const phaseEl = document.getElementById('phase');
   const countdownEl = document.getElementById('countdown');
   const touchHolder = document.getElementById('touchHolder');
   const touchPad = document.getElementById('touchPad');
-  const pressBar = document.getElementById('pressBar');
 
   let iframe = null;
-  let mainTimer = null; // 180s
-  let mainRemaining = 0;
-
-  // touch monitoring
-  let monitoring = false; // after main timer ends
-  let lastTouchedAt = null; // timestamp ms when user last touched
-  let isCurrentlyTouching = false;
-  let monitorInterval = null;
+  let previewTimer = null; // 20s preview
+  let previewRemaining = 0;
+  let inPhase2 = false;
+  let holdActive = false;
 
   function formatTime(s){
-    if (s < 0) s = 0;
+    if(s<0) s=0;
     const m = Math.floor(s/60).toString().padStart(2,'0');
     const sec = Math.floor(s%60).toString().padStart(2,'0');
     return `${m}:${sec}`;
-  }
-
-  function clearIframe(){
-    if(iframe){
-      iframe.src = 'about:blank';
-      frameWrap.innerHTML = '<div style="color:var(--muted);text-align:center;">Iframe cleared — touch pad untouched for too long.</div>';
-      iframe = null;
-    }
-    phaseEl.textContent = 'idle';
-    countdownEl.textContent = '--:--';
-    touchHolder.style.display = 'none';
-    stopMonitoring();
-  }
-
-  function stopMonitoring(){
-    monitoring = false;
-    lastTouchedAt = null;
-    isCurrentlyTouching = false;
-    touchPad.classList.remove('blink');
-    if(monitorInterval){ clearInterval(monitorInterval); monitorInterval = null; }
-  }
-
-  function startMainCountdown(){
-    mainRemaining = 180; // 3 minutes (as per user clarified 180s). If you meant 150s, change this to 150.
-    phaseEl.textContent = 'active';
-    countdownEl.textContent = formatTime(mainRemaining);
-    touchHolder.style.display = 'none';
-    mainTimer = setInterval(()=>{
-      mainRemaining -= 1;
-      countdownEl.textContent = formatTime(mainRemaining);
-      if(mainRemaining <= 0){
-        clearInterval(mainTimer);
-        mainTimer = null;
-        beginMonitoringPhase();
-      }
-    },1000);
-  }
-
-  function beginMonitoringPhase(){
-    phaseEl.textContent = 'monitoring';
-    countdownEl.textContent = '--:--';
-    touchHolder.style.display = 'block';
-    monitoring = true;
-    lastTouchedAt = Date.now(); // allow immediate grace — user has 20s from this point to touch
-    isCurrentlyTouching = false;
-    pressBar.style.width = '0%';
-
-    // poll every 200ms to update UI and check for timeout
-    monitorInterval = setInterval(()=>{
-      const now = Date.now();
-      const elapsed = now - (lastTouchedAt || 0);
-      // If user is not currently touching, show blinking red
-      if(!isCurrentlyTouching){
-        touchPad.classList.add('blink');
-      } else {
-        touchPad.classList.remove('blink');
-      }
-      // update pressBar to reflect time since last touch (percentage of 20s)
-      const pct = Math.min(100, (elapsed / 20000) * 100);
-      pressBar.style.width = pct + '%';
-
-      // if elapsed exceeds 20s -> clear iframe
-      if(elapsed >= 20000){
-        clearInterval(monitorInterval);
-        monitorInterval = null;
-        // small delay to let UI show final blink
-        setTimeout(()=>{ clearIframe(); },200);
-      }
-    },200);
   }
 
   function injectIframe(src){
@@ -194,58 +103,116 @@
     iframe.src = src;
     iframe.sandbox = 'allow-scripts allow-forms allow-same-origin allow-popups';
     iframe.loading = 'lazy';
-    iframe.addEventListener('load', ()=>{
-      // start main countdown only when iframe loads
-      startMainCountdown();
-    });
     frameWrap.appendChild(iframe);
+    // start 20s preview immediately once injected
+    startPreviewCountdown(20);
   }
 
-  // touch/hold handlers — we consider any touch or mouse press as a 'touch' that resets the 20s timer
-  function recordTouchStart(e){
-    isCurrentlyTouching = true;
-    lastTouchedAt = Date.now();
+  function startPreviewCountdown(seconds){
+    // Replace URL card with a progress bar for 20s
+    previewRemaining = seconds;
+    phaseEl.textContent = 'preview';
+    countdownEl.textContent = formatTime(previewRemaining);
+
+    urlCard.innerHTML = `
+      <div style="width:100%;display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <div class="progress-bar" aria-hidden="true"><div id="progressInner" class="progress-inner" style="transform:scaleX(1)"></div></div>
+        </div>
+        <div class="time-label" id="previewLabel">${formatTime(previewRemaining)}</div>
+      </div>
+    `;
+
+    const progressInner = document.getElementById('progressInner');
+    const previewLabel = document.getElementById('previewLabel');
+
+    const start = Date.now();
+    previewTimer = setInterval(()=>{
+      const elapsed = (Date.now() - start) / 1000;
+      const rem = Math.max(0, seconds - elapsed);
+      previewRemaining = rem;
+      const pct = Math.max(0, rem / seconds);
+      progressInner.style.transform = `scaleX(${pct})`;
+      previewLabel.textContent = formatTime(Math.ceil(rem));
+      countdownEl.textContent = formatTime(Math.ceil(rem));
+      if(rem <= 0){
+        clearInterval(previewTimer);
+        previewTimer = null;
+        enterPhase2();
+      }
+    }, 100);
+  }
+
+  function enterPhase2(){
+    phaseEl.textContent = 'phase 2';
+    countdownEl.textContent = '--:--';
+    inPhase2 = true;
+    // show touch-and-hold button
+    touchHolder.style.display = 'block';
+    // require continuous hold — if released even briefly, clear iframe
+    // add visual cue
+    touchPad.classList.remove('blink');
+  }
+
+  function clearIframe(){
+    if(iframe){
+      iframe.src = 'about:blank';
+      frameWrap.innerHTML = '<div style="color:var(--muted);text-align:center;">Iframe cleared — touch pad released.</div>';
+      iframe = null;
+    }
+    phaseEl.textContent = 'idle';
+    countdownEl.textContent = '--:--';
+    // restore URL input for a fresh load
+    restoreUrlCard();
+  }
+
+  function restoreUrlCard(){
+    touchHolder.style.display = 'none';
+    inPhase2 = false;
+    holdActive = false;
+    urlCard.innerHTML = `<input id="urlInput" type="url" placeholder="https://example.com" aria-label="URL to load" /><button id="loadBtn">Load</button>`;
+    // rebind elements
+    const newUrlInput = document.getElementById('urlInput');
+    const newLoadBtn = document.getElementById('loadBtn');
+    // replace references
+    newLoadBtn.addEventListener('click', ()=>{ const url = newUrlInput.value.trim(); if(!url) return alert('Please enter a URL'); const normalized = (url.startsWith('http://') || url.startsWith('https://')) ? url : 'https://' + url; injectIframe(normalized); });
+    newUrlInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') newLoadBtn.click(); });
+  }
+
+  // Hold handlers for phase 2: must be continuously pressed
+  function holdStart(e){
+    if(!inPhase2) return;
+    e.preventDefault && e.preventDefault();
+    holdActive = true;
     touchPad.classList.add('active');
-    // visually fill the bar to indicate fresh touch
-    pressBar.style.width = '0%';
   }
-  function recordTouchEnd(e){
-    isCurrentlyTouching = false;
+  function holdEnd(e){
+    if(!inPhase2) return;
+    holdActive = false;
     touchPad.classList.remove('active');
-    // lastTouchedAt remains as the last moment of interaction
-    lastTouchedAt = lastTouchedAt || Date.now();
+    // any release during phase 2 clears iframe immediately
+    clearIframe();
   }
 
-  // Event wiring
+  // initial bindings for original load button
   loadBtn.addEventListener('click', ()=>{
     const url = urlInput.value.trim();
     if(!url) return alert('Please enter a URL');
     const normalized = (url.startsWith('http://') || url.startsWith('https://')) ? url : 'https://' + url;
-    // reset any previous state
-    if(mainTimer){ clearInterval(mainTimer); mainTimer = null; }
-    stopMonitoring();
-    touchHolder.style.display = 'none';
     injectIframe(normalized);
   });
-  urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') loadBtn.click(); });
+  urlInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadBtn.click(); });
 
-  // Desktop mouse events
-  touchPad.addEventListener('mousedown', (e)=>{ if(monitoring) recordTouchStart(e); });
-  window.addEventListener('mouseup', (e)=>{ if(monitoring) recordTouchEnd(e); });
+  // touch/mouse bindings for touchPad (phase2 behavior)
+  touchPad.addEventListener('touchstart', holdStart);
+  touchPad.addEventListener('touchend', holdEnd);
+  touchPad.addEventListener('touchcancel', holdEnd);
+  touchPad.addEventListener('mousedown', (e)=>{ holdStart(e); });
+  window.addEventListener('mouseup', (e)=>{ if(holdActive) holdEnd(e); });
 
-  // Touch events for mobile
-  touchPad.addEventListener('touchstart', (e)=>{ if(monitoring) recordTouchStart(e); });
-  touchPad.addEventListener('touchend', (e)=>{ if(monitoring) recordTouchEnd(e); });
-  touchPad.addEventListener('touchcancel', (e)=>{ if(monitoring) recordTouchEnd(e); });
-
-  // keyboard accessibility: tapping space/enter counts as a touch
-  touchPad.addEventListener('keydown', (e)=>{
-    if(!monitoring) return;
-    if(e.key === ' ' || e.key === 'Enter'){
-      recordTouchStart(e);
-    }
-  });
-  touchPad.addEventListener('keyup',(e)=>{ if(!monitoring) return; if(e.key===' '|| e.key==='Enter') recordTouchEnd(e); });
+  // keyboard accessibility: require holding space/enter — releasing clears
+  touchPad.addEventListener('keydown', (e)=>{ if(!inPhase2) return; if(e.key===' '||e.key==='Enter'){ holdStart(e); } });
+  touchPad.addEventListener('keyup', (e)=>{ if(!inPhase2) return; if(e.key===' '||e.key==='Enter'){ holdEnd(e); } });
 
 })();
 </script>
