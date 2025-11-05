@@ -3,338 +3,312 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Quiz Guard</title>
+  <title>Quiz Guard — Reload current iframe page</title>
   <style>
-    :root{
-      --bg:#071022; --card:#0b1220; --accent:#06b6d4; --danger:#fb7185;
-      --muted:#94a3b8; --text:#e6eef6;
-    }
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#081426);color:var(--text);font-family:Inter,system-ui,Arial;}
+    :root{--bg:#071022;--accent:#06b6d4;--danger:#fb7185;--muted:#94a3b8;--text:#e6eef6}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#081426);color:var(--text);font-family:Inter,system-ui,Arial}
     .app{min-height:100vh;display:flex;flex-direction:column;align-items:center}
-
-    /* Header - 10% height */
-    header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;box-sizing:border-box;background:rgba(255,255,255,0.02);backdrop-filter:blur(4px);border-bottom:1px solid rgba(255,255,255,0.03)}
-    .title{display:flex;flex-direction:column}
-    .title h1{margin:0;font-size:1.05rem}
-    .title .sub{font-size:0.78rem;color:var(--muted);margin-top:4px}
-    .timers{display:flex;gap:14px;align-items:center}
-    .timer{padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.01);text-align:center;min-width:110px}
-    .timer .label{font-size:0.72rem;color:var(--muted)}
-    .timer .value{font-weight:700;font-size:0.95rem}
-
+    header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;box-sizing:border-box;background:rgba(255,255,255,0.02)}
+    .title h1{margin:0;font-size:1.05rem}.timers{display:flex;gap:14px}
+    .timer{padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.01);min-width:110px;text-align:center}
     main{width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px;box-sizing:border-box}
-
     .url-row{width:90vw;max-width:980px;display:flex;gap:8px;align-items:center}
     .url-row input{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:1rem}
     .url-row button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#022;cursor:pointer;font-weight:700}
     .url-row button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text)}
-
     .stage{width:90vw;max-width:980px;display:flex;flex-direction:column;align-items:center;gap:10px}
-    .frame-wrap{width:100%;height:70vh;background:rgba(255,255,255,0.01);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
+    .frame-wrap{width:100%;height:70vh;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.03);position:relative}
     iframe{width:100%;height:100%;border-radius:12px;border:0;background:white}
-
     .touch-wrap{width:100%;display:flex;justify-content:center}
-    .touch-pad{width:90vw;max-width:980px;height:15vh;min-height:64px;border-radius:14px;border:3px solid rgba(255,255,255,0.04);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));display:flex;align-items:center;justify-content:center;box-sizing:border-box;touch-action:none;user-select:none}
-    .touch-pad:empty{}
-
-    .touch-pad.active{background:linear-gradient(90deg,var(--accent),#48d7e6);border-color:rgba(6,182,212,0.85);box-shadow:0 6px 30px rgba(6,182,212,0.12)}
-    .touch-pad.blink{animation:blink 1s infinite;border-color:var(--danger);box-shadow:0 0 18px rgba(251,113,133,0.12)}
+    .touch-pad{width:90vw;max-width:980px;height:15vh;border-radius:14px;border:20px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none}
+    .touch-pad.active{background:linear-gradient(90deg,var(--accent),#48d7e6);border-color:rgba(6,182,212,0.85)}
+    .touch-pad.blink{animation:blink 1s infinite;border-color:var(--danger)}
     @keyframes blink{0%{opacity:1}50%{opacity:0.35}100%{opacity:1}}
-
-    .placeholder{color:var(--muted);text-align:center;padding:18px}
-    .note{font-size:0.82rem;color:var(--muted);text-align:center;max-width:980px}
-
-    @media (max-width:720px){
-      .timer{min-width:80px}
-      iframe{width:96vw}
-      .touch-pad{width:96vw}
-      .url-row{width:96vw}
-    }
+    .spinner-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.33);backdrop-filter:blur(2px);z-index:10;border-radius:12px}
+    .spinner{width:40px;height:40px;border-radius:50%;border:4px solid rgba(255,255,255,0.12);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .note{font-size:0.82rem;color:var(--muted);max-width:980px;text-align:center}
+    .small{font-size:0.78rem;color:var(--muted)}
+    @media (max-width:720px){iframe{width:96vw}.touch-pad{width:96vw}.url-row{width:96vw}}
   </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <div class="title">
-        <h1>Quiz Guard</h1>
-        <a href="file.html">Click</a>
-        <div class="sub">Title + timer (top 10% height)</div>
-      </div>
+      <div class="title"><h1>Quiz Guard</h1><div class="small"></div></div>
       <div class="timers">
-        <div class="timer"><div class="label">Phase</div><div id="phase" class="value">idle</div></div>
-        <div class="timer"><div class="label">Timer</div><div id="countdown" class="value">--:--</div></div>
+        <div class="timer"><div class="label small">Phase</div><div id="phase" class="value">idle</div></div>
+        <div class="timer"><div class="label small">Timer</div><div id="countdown" class="value">--:--</div></div>
       </div>
     </header>
 
     <main>
       <div id="stage" class="stage" aria-live="polite">
         <div id="initialUrl" class="url-row" aria-label="URL input area">
-          <input id="urlInput" type="url" placeholder="https://example.com" aria-label="Enter a URL to load" />
-          <button id="loadBtn" aria-label="Load URL">Load</button>
-          <button id="refreshBtn" class="secondary" aria-label="Refresh iframe" disabled>Refresh</button>
+          <input id="urlInput" type="url" placeholder="https://example.com/quiz" aria-label="Enter a URL" />
+          <button id="loadBtn" type="button">Load</button>
+          <button id="refreshBtn" type="button" class="secondary" disabled title="Reload current iframe page">Refresh</button>
+          <!--<button id="openTabBtn" type="button" class="secondary" disabled title="Open current iframe page in a new tab">Open in new tab</button>-->
         </div>
       </div>
 
-      <div class="note">Flow: enter URL → iframe opens (70vh) above the URL bar → touch button below (15vh). After iframe loads, 2:30 grace. After that: monitoring phase — the 20s countdown runs only while the button is NOT touched. Touching resets & freezes it at 20s. If it reaches 0 the iframe clears. Use Refresh to reload only the iframe page.</div>
+      <!--<div class="note">
+        Behavior: Load a quiz URL. After 2:30 the monitoring phase starts. The Refresh button attempts to reload the <strong>current page inside the iframe</strong> (so if the student is on a question page it will try to refresh that page). <br>
+        <strong>Important:</strong> If the quiz is on a different domain (cross-origin), the browser blocks reading the iframe's current URL — in that case the Refresh cannot discover the exact internal page; use "Open in new tab" to open the current iframe (or original) in a separate tab and refresh there.
+      </div>-->
     </main>
   </div>
 
 <script>
 (function(){
+  // elements
   const stage = document.getElementById('stage');
   const initialUrlRow = document.getElementById('initialUrl');
   const urlInput = document.getElementById('urlInput');
   const loadBtn = document.getElementById('loadBtn');
   const refreshBtn = document.getElementById('refreshBtn');
+  const openTabBtn = document.getElementById('openTabBtn');
   const phaseEl = document.getElementById('phase');
   const countdownEl = document.getElementById('countdown');
 
+  // state
   let iframeEl = null;
   let touchPad = null;
-  let loadedUrl = null; // remember the URL loaded in iframe
-
-  let mainCountdownInterval = null;
-  const MAIN_SECONDS = 150; // 2:30
+  let loadedUrl = null; // original URL you typed (fallback)
+  let mainInterval = null;
+  const MAIN_SECONDS = 150;
   let mainRemaining = 0;
 
-  // Monitoring state
+  // monitor phase
   let monitorInterval = null;
-  const MONITOR_LIMIT_MS = 20000; // 20s
-  let phase2Active = false;
+  const MONITOR_LIMIT_MS = 20000;
+  let phase2 = false;
   let isTouching = false;
-  let countdownMs = MONITOR_LIMIT_MS; // current countdown (ms)
+  let countdownMs = MONITOR_LIMIT_MS;
 
-  function fmtTimeFromMs(ms){
+  // refresh spinner flag
+  let isRefreshing = false;
+
+  function fmtTimeMs(ms){
     if(ms < 0) ms = 0;
     const s = Math.ceil(ms/1000);
     const m = Math.floor(s/60).toString().padStart(2,'0');
     const sec = Math.floor(s%60).toString().padStart(2,'0');
     return `${m}:${sec}`;
   }
-  function fmtTimeSecs(s){
-    if(s < 0) s = 0;
-    const m = Math.floor(s/60).toString().padStart(2,'0');
-    const sec = Math.floor(s%60).toString().padStart(2,'0');
-    return `${m}:${sec}`;
-  }
+  function fmtTimeSecs(s){ if(s<0)s=0; return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`; }
 
-  function setPhase(name){ phaseEl.textContent = name; }
-  function setCountdownText(text){ countdownEl.textContent = text; }
+  function setPhase(n){ phaseEl.textContent = n; }
+  function setCountdown(t){ countdownEl.textContent = t; }
 
-  function renderStageWithIframe(src){
+  // render iframe + touch pad
+  function renderIframe(url){
     stage.innerHTML = '';
     const frameWrap = document.createElement('div');
     frameWrap.className = 'frame-wrap';
-    frameWrap.setAttribute('role','region');
-    frameWrap.setAttribute('aria-label','Loaded site iframe');
 
     iframeEl = document.createElement('iframe');
-    iframeEl.setAttribute('sandbox','allow-scripts allow-forms allow-same-origin allow-popups');
+    iframeEl.src = url;
     iframeEl.loading = 'lazy';
-    iframeEl.style.width = '100%';
-    iframeEl.style.border = '0';
-    iframeEl.src = src;
+    iframeEl.setAttribute('sandbox','allow-scripts allow-forms allow-same-origin allow-popups');
 
     frameWrap.appendChild(iframeEl);
     stage.appendChild(frameWrap);
 
+    // touch pad below iframe
     const touchWrap = document.createElement('div');
     touchWrap.className = 'touch-wrap';
     touchPad = document.createElement('div');
     touchPad.className = 'touch-pad';
-    touchPad.setAttribute('aria-label','Touch and hold button');
     touchPad.setAttribute('role','button');
     touchPad.setAttribute('tabindex','0');
     touchWrap.appendChild(touchPad);
     stage.appendChild(touchWrap);
 
-    // keep url input row below for reload convenience
+    // url input row below
     stage.appendChild(initialUrlRow);
 
-    // enable refresh button because iframe exists now
+    // enable refresh/open buttons
     refreshBtn.disabled = false;
+    openTabBtn.disabled = false;
 
-    bindTouchPadEvents();
+    bindTouchPad();
 
+    // when iframe loads, start main countdown (or if already started, ignore)
     iframeEl.addEventListener('load', ()=> {
-      startMainCountdown();
+      if(!mainInterval) startMainCountdown();
+      // if refreshing, stop spinner
+      if(isRefreshing) endRefreshSpinner();
     });
 
-    // fallback start if load doesn't fire
-    setTimeout(()=>{ if(!mainCountdownInterval) startMainCountdown(); }, 1200);
+    // fallback: start countdown anyway after a short delay
+    setTimeout(()=>{ if(!mainInterval) startMainCountdown(); }, 1200);
   }
 
-  function restoreInitialUrlRow(){
+  function restoreInitial(){
     stage.innerHTML = '';
     stage.appendChild(initialUrlRow);
-    iframeEl = null;
-    touchPad = null;
-    loadedUrl = null;
-    stopAllTimers();
-    setPhase('idle');
-    setCountdownText('--:--');
-    refreshBtn.disabled = true;
+    iframeEl = null; touchPad = null; loadedUrl = null;
+    stopAll();
+    setPhase('idle'); setCountdown('--:--');
+    refreshBtn.disabled = true; openTabBtn.disabled = true;
   }
 
+  // Main 2:30 countdown
   function startMainCountdown(){
-    if(mainCountdownInterval) return;
+    if(mainInterval) return;
     mainRemaining = MAIN_SECONDS;
-    setPhase('active');
-    setCountdownText(fmtTimeSecs(mainRemaining));
-    mainCountdownInterval = setInterval(()=>{
+    setPhase('active'); setCountdown(fmtTimeSecs(mainRemaining));
+    mainInterval = setInterval(()=>{
       mainRemaining -= 1;
-      setCountdownText(fmtTimeSecs(mainRemaining));
+      setCountdown(fmtTimeSecs(mainRemaining));
       if(mainRemaining <= 0){
-        clearInterval(mainCountdownInterval);
-        mainCountdownInterval = null;
+        clearInterval(mainInterval); mainInterval = null;
         enterPhase2();
       }
     }, 1000);
   }
 
-  // Phase2 behavior per spec:
-  // - countdownMs initially = 20000
-  // - The 20s countdown decrements ONLY while button is NOT being touched.
-  // - If user touches the button: countdownMs resets to 20000 and freezes.
-  // - If user releases: countdown resumes from 20000 down to 0.
+  // Phase 2 monitoring
   function enterPhase2(){
-    phase2Active = true;
+    phase2 = true;
     setPhase('monitoring');
     countdownMs = MONITOR_LIMIT_MS;
-    setCountdownText(fmtTimeFromMs(countdownMs));
+    setCountdown(fmtTimeMs(countdownMs));
     if(touchPad) touchPad.classList.add('blink');
 
     if(monitorInterval) clearInterval(monitorInterval);
-    let lastTick = Date.now();
+    let last = Date.now();
     monitorInterval = setInterval(()=>{
       const now = Date.now();
-      const delta = now - lastTick;
-      lastTick = now;
+      const delta = now - last;
+      last = now;
 
-      if(isTouching){
-        countdownMs = MONITOR_LIMIT_MS;
-      } else {
-        countdownMs = Math.max(0, countdownMs - delta);
-      }
+      if(isTouching) { countdownMs = MONITOR_LIMIT_MS; }
+      else { countdownMs = Math.max(0, countdownMs - delta); }
 
-      setCountdownText(fmtTimeFromMs(countdownMs));
-
+      setCountdown(fmtTimeMs(countdownMs));
       if(touchPad){
-        if(isTouching) touchPad.classList.remove('blink');
-        else touchPad.classList.add('blink');
+        if(isTouching) touchPad.classList.remove('blink'); else touchPad.classList.add('blink');
       }
 
       if(countdownMs <= 0){
-        clearInterval(monitorInterval);
-        monitorInterval = null;
-        clearStageIframe();
+        clearInterval(monitorInterval); monitorInterval = null;
+        clearIframe();
       }
     }, 100);
   }
 
-  function stopAllTimers(){
-    if(mainCountdownInterval){ clearInterval(mainCountdownInterval); mainCountdownInterval = null; }
+  function stopAll(){
+    if(mainInterval){ clearInterval(mainInterval); mainInterval = null; }
     if(monitorInterval){ clearInterval(monitorInterval); monitorInterval = null; }
-    phase2Active = false;
-    isTouching = false;
-    countdownMs = MONITOR_LIMIT_MS;
+    phase2 = false; isTouching = false; countdownMs = MONITOR_LIMIT_MS;
   }
 
-  function clearStageIframe(){
-    if(iframeEl){
-      try{ iframeEl.src = 'about:blank'; } catch(e){}
-    }
+  function clearIframe(){
+    try{ if(iframeEl) iframeEl.src = 'about:blank'; } catch(e){}
     stage.innerHTML = '';
-    const placeholder = document.createElement('div');
-    placeholder.className = 'frame-wrap placeholder';
-    placeholder.innerHTML = '<div class="placeholder">Iframe cleared — touch pad was left untouched for too long.</div>';
-    stage.appendChild(placeholder);
+    const ph = document.createElement('div'); ph.className = 'frame-wrap placeholder'; ph.innerHTML = '<div class="small">Iframe cleared — untouched too long.</div>';
+    stage.appendChild(ph);
     stage.appendChild(initialUrlRow);
-    stopAllTimers();
-    setPhase('idle');
-    setCountdownText('--:--');
-    refreshBtn.disabled = true;
+    stopAll();
+    setPhase('idle'); setCountdown('--:--');
+    refreshBtn.disabled = true; openTabBtn.disabled = true;
     loadedUrl = null;
   }
 
-  function bindTouchPadEvents(){
+  // Touch pad binding
+  function bindTouchPad(){
     if(!touchPad) return;
-
-    const startHandler = (ev)=>{
-      isTouching = true;
-      countdownMs = MONITOR_LIMIT_MS;
-      touchPad.classList.add('active');
-      if(ev && ev.preventDefault) ev.preventDefault();
-    };
-
-    const endHandler = (ev)=>{
-      isTouching = false;
-      touchPad.classList.remove('active');
-      // countdown resumes (no immediate clear)
-    };
-
-    touchPad.addEventListener('mousedown', (e)=>{ if(phase2Active) startHandler(e); });
-    window.addEventListener('mouseup', (e)=>{ if(phase2Active && isTouching) endHandler(e); });
-
-    touchPad.addEventListener('touchstart', (e)=>{ if(phase2Active) startHandler(e); }, {passive:false});
-    touchPad.addEventListener('touchend', (e)=>{ if(phase2Active) endHandler(e); }, {passive:true});
-    touchPad.addEventListener('touchcancel', (e)=>{ if(phase2Active) endHandler(e); }, {passive:true});
-
-    touchPad.addEventListener('keydown', (e)=>{
-      if(!phase2Active) return;
-      if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); if(!isTouching) startHandler(e); }
-    });
-    touchPad.addEventListener('keyup', (e)=>{
-      if(!phase2Active) return;
-      if(e.key === ' ' || e.key === 'Enter'){ endHandler(e); }
-    });
-
-    touchPad.addEventListener('click', (e)=>{
-      if(phase2Active){
-        countdownMs = MONITOR_LIMIT_MS;
-      }
-    });
+    const start = (e)=>{ if(!phase2) return; isTouching = true; countdownMs = MONITOR_LIMIT_MS; touchPad.classList.add('active'); if(e && e.preventDefault) e.preventDefault(); };
+    const end = (e)=>{ if(!phase2) return; isTouching = false; touchPad.classList.remove('active'); };
+    touchPad.addEventListener('touchstart', start, {passive:false});
+    touchPad.addEventListener('touchend', end, {passive:true});
+    touchPad.addEventListener('mousedown', start);
+    window.addEventListener('mouseup', end);
+    touchPad.addEventListener('keydown', (e)=>{ if((e.key===' '||e.key==='Enter')&&phase2){ e.preventDefault(); if(!isTouching) start(e); }});
+    touchPad.addEventListener('keyup', (e)=>{ if((e.key===' '||e.key==='Enter')&&phase2) end(e); });
+    touchPad.addEventListener('click', ()=>{ if(phase2) countdownMs = MONITOR_LIMIT_MS; });
   }
 
-  // Refresh logic: reload only iframe content; preserve timers and phase.
-  function reloadIframe(){
-    if(!iframeEl || !loadedUrl) return;
-    // Try to use contentWindow.reload() if same-origin; otherwise fallback to reassigning src.
+  // ---- Refresh logic: reload "current page in iframe" if possible ----
+  function beginRefreshSpinner(){
+    if(!iframeEl) return;
+    const wrap = iframeEl.closest('.frame-wrap'); if(!wrap) return;
+    if(wrap.querySelector('.spinner-overlay')) return;
+    const overlay = document.createElement('div'); overlay.className = 'spinner-overlay';
+    overlay.innerHTML = '<div class="spinner" aria-hidden="true"></div>';
+    wrap.appendChild(overlay);
+    isRefreshing = true; refreshBtn.disabled = true;
+  }
+  function endRefreshSpinner(){ if(!iframeEl) return; const wrap = iframeEl.closest('.frame-wrap'); if(!wrap) return; const o = wrap.querySelector('.spinner-overlay'); if(o) o.remove(); isRefreshing = false; refreshBtn.disabled = false; }
+
+  function refreshCurrentIframe(event){
+    if(event && event.preventDefault) event.preventDefault();
+    if(event && event.stopPropagation) event.stopPropagation();
+    if(!iframeEl) return;
+
+    beginRefreshSpinner();
+
+    // Try to read iframe.current location (same-origin only)
     try {
-      if(iframeEl.contentWindow && typeof iframeEl.contentWindow.location.reload === 'function'){
-        iframeEl.contentWindow.location.reload();
-      } else {
-        iframeEl.src = loadedUrl;
+      const currentHref = iframeEl.contentWindow.location.href; // may throw if cross-origin
+      // same-origin: refresh that exact URL (keeps student on the question/page)
+      try {
+        iframeEl.contentWindow.location.reload(); // best for preserving state in same-origin
+        return;
+      } catch(e){
+        // if reload fails, fallback to reassigning the same href
+        iframeEl.src = currentHref;
+        return;
       }
     } catch(err){
-      // Cross-origin may throw — fallback to reassigning src
-      iframeEl.src = loadedUrl;
+      // cross-origin: cannot read current location — fallback to original loadedUrl with cache-buster
+      try {
+        const base = loadedUrl || iframeEl.src;
+        const sep = base.includes('?') ? '&' : '?';
+        iframeEl.src = base + sep + '_r=' + Date.now();
+      } catch(e){
+        try { iframeEl.src = iframeEl.src; } catch(_) { endRefreshSpinner(); }
+      }
+    }
+
+    // Safety: if load event doesn't fire (cross-origin quirks) clear spinner after 8s
+    setTimeout(()=>{ if(isRefreshing) endRefreshSpinner(); }, 8000);
+  }
+
+  // "Open current in new tab" helper:
+  // Tries to open iframe's current href (same-origin). If cross-origin, opens original loadedUrl.
+  function openCurrentInTab(){
+    if(!iframeEl) return;
+    try {
+      const currentHref = iframeEl.contentWindow.location.href; // may throw
+      window.open(currentHref, '_blank');
+    } catch(e){
+      // cross-origin: open original URL (may go to registration)
+      if(loadedUrl) window.open(loadedUrl, '_blank');
+      else window.open(iframeEl.src, '_blank');
     }
   }
 
-  // Load button handler
-  loadBtn.addEventListener('click', ()=>{
+  // Load button
+  loadBtn.addEventListener('click', (ev)=>{
+    if(ev && ev.preventDefault) ev.preventDefault();
     const raw = urlInput.value.trim();
-    if(!raw){ alert('Please enter a URL'); return; }
-    const url = (raw.startsWith('http://') || raw.startsWith('https://')) ? raw : ('https://' + raw);
+    if(!raw){ alert('Enter a URL'); return; }
+    const url = (raw.startsWith('http://')||raw.startsWith('https://')) ? raw : ('https://' + raw);
     loadedUrl = url;
-    stopAllTimers();
-    renderStageWithIframe(url);
+    stopAll();
+    renderIframe(url);
   });
-
   urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') loadBtn.click(); });
 
-  // Refresh button binding
-  refreshBtn.addEventListener('click', ()=>{
-    if(!iframeEl){
-      alert('No iframe loaded to refresh.');
-      return;
-    }
-    reloadIframe();
-  });
+  // Refresh & open buttons
+  refreshBtn.addEventListener('click', refreshCurrentIframe);
+  openTabBtn.addEventListener('click', openCurrentInTab);
 
-  // Initial
-  restoreInitialUrlRow();
+  // initial UI
+  restoreInitial();
 })();
 </script>
 </body>
