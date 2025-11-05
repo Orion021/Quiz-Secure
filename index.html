@@ -6,30 +6,14 @@
   <title>Quiz Guard</title>
   <style>
     :root{
-      --bg:#071022;
-      --card:#0b1220;
-      --accent:#06b6d4;
-      --danger:#fb7185;
-      --muted:#94a3b8;
-      --text:#e6eef6;
+      --bg:#071022; --card:#0b1220; --accent:#06b6d4; --danger:#fb7185;
+      --muted:#94a3b8; --text:#e6eef6;
     }
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#081426);color:var(--text);font-family:Inter,system-ui,Arial; -webkit-font-smoothing:antialiased;}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#081426);color:var(--text);font-family:Inter,system-ui,Arial;}
     .app{min-height:100vh;display:flex;flex-direction:column;align-items:center}
 
     /* Header - 10% height */
-    header{
-      height:10vh;
-      min-height:64px;
-      width:100%;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:8px 18px;
-      box-sizing:border-box;
-      background:rgba(255,255,255,0.02);
-      backdrop-filter:blur(4px);
-      border-bottom:1px solid rgba(255,255,255,0.03);
-    }
+    header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;box-sizing:border-box;background:rgba(255,255,255,0.02);backdrop-filter:blur(4px);border-bottom:1px solid rgba(255,255,255,0.03)}
     .title{display:flex;flex-direction:column}
     .title h1{margin:0;font-size:1.05rem}
     .title .sub{font-size:0.78rem;color:var(--muted);margin-top:4px}
@@ -40,46 +24,25 @@
 
     main{width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px;box-sizing:border-box}
 
-    /* URL input area (initially shown) */
     .url-row{width:90vw;max-width:980px;display:flex;gap:8px;align-items:center}
-    .url-row input{
-      flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:1rem;
-    }
-    .url-row button{
-      padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#022;cursor:pointer;font-weight:700;
-    }
+    .url-row input{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:1rem}
+    .url-row button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#022;cursor:pointer;font-weight:700}
 
-    /* Frame + touch layout */
     .stage{width:90vw;max-width:980px;display:flex;flex-direction:column;align-items:center;gap:10px}
     .frame-wrap{width:100%;height:70vh;background:rgba(255,255,255,0.01);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
-    iframe{width:90vw;max-width:980px;height:70vh;border-radius:12px;border:0;background:white}
+    iframe{width:100%;height:100%;border-radius:12px;border:0;background:white}
 
-    /* Touch & hold button (15% of screen height) */
     .touch-wrap{width:100%;display:flex;justify-content:center}
-    .touch-pad{
-      width:90vw;
-      max-width:980px;
-      height:15vh;
-      min-height:64px;
-      border-radius:14px;
-      border:3px solid rgba(255,255,255,0.04);
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
-      display:flex;align-items:center;justify-content:center;
-      box-sizing:border-box; touch-action:none; -webkit-user-select:none; user-select:none;
-    }
-    /* empty button - no text */
-    .touch-pad:empty{ /* allow visually empty */ }
+    .touch-pad{width:90vw;max-width:980px;height:15vh;min-height:64px;border-radius:14px;border:3px solid rgba(255,255,255,0.04);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));display:flex;align-items:center;justify-content:center;box-sizing:border-box;touch-action:none;user-select:none}
+    .touch-pad:empty{}
 
-    /* visual states */
     .touch-pad.active{background:linear-gradient(90deg,var(--accent),#48d7e6);border-color:rgba(6,182,212,0.85);box-shadow:0 6px 30px rgba(6,182,212,0.12)}
     .touch-pad.blink{animation:blink 1s infinite;border-color:var(--danger);box-shadow:0 0 18px rgba(251,113,133,0.12)}
     @keyframes blink{0%{opacity:1}50%{opacity:0.35}100%{opacity:1}}
 
-    /* placeholder when iframe cleared */
     .placeholder{color:var(--muted);text-align:center;padding:18px}
-
-    /* small note and responsive tweaks */
     .note{font-size:0.82rem;color:var(--muted);text-align:center;max-width:980px}
+
     @media (max-width:720px){
       .timer{min-width:80px}
       iframe{width:96vw}
@@ -102,22 +65,19 @@
     </header>
 
     <main>
-      <!-- Stage contains iframe (70vh) then touch-pad (15vh) -->
       <div id="stage" class="stage" aria-live="polite">
-        <!-- initially empty; iframe will be injected here when URL is loaded -->
         <div id="initialUrl" class="url-row" aria-label="URL input area">
           <input id="urlInput" type="url" placeholder="https://example.com" aria-label="Enter a URL to load" />
           <button id="loadBtn" aria-label="Load URL">Load</button>
         </div>
       </div>
 
-      <div class="note">Flow: enter URL → iframe opens (70vh) above the URL bar → touch button below (15vh). After iframe loads, 2m30s grace. After that: monitoring phase — do not leave button untouched for more than 20s or iframe will clear.</div>
+      <div class="note">Flow: enter URL → iframe opens (70vh) above the URL bar → touch button below (15vh). After iframe loads, 2:30 grace. After that: monitoring phase — the 20s countdown runs only while the button is NOT touched. Touching resets & freezes it at 20s. If it reaches 0 the iframe clears.</div>
     </main>
   </div>
 
 <script>
 (function(){
-  // Elements
   const stage = document.getElementById('stage');
   const initialUrlRow = document.getElementById('initialUrl');
   const urlInput = document.getElementById('urlInput');
@@ -125,22 +85,27 @@
   const phaseEl = document.getElementById('phase');
   const countdownEl = document.getElementById('countdown');
 
-  // State
   let iframeEl = null;
   let touchPad = null;
 
-  // timers
-  let mainCountdownInterval = null; // 150s (2:30)
-  const MAIN_SECONDS = 150; // 2 minutes 30 seconds
+  let mainCountdownInterval = null;
+  const MAIN_SECONDS = 150; // 2:30
   let mainRemaining = 0;
 
-  let monitorInterval = null; // check monitor every 200ms
+  // Monitoring state
+  let monitorInterval = null;
   const MONITOR_LIMIT_MS = 20000; // 20s
   let phase2Active = false;
-  let lastInteractionAt = null; // timestamp (ms)
   let isTouching = false;
+  let countdownMs = MONITOR_LIMIT_MS; // current countdown (ms)
 
-  // helpers
+  function fmtTimeFromMs(ms){
+    if(ms < 0) ms = 0;
+    const s = Math.ceil(ms/1000);
+    const m = Math.floor(s/60).toString().padStart(2,'0');
+    const sec = Math.floor(s%60).toString().padStart(2,'0');
+    return `${m}:${sec}`;
+  }
   function fmtTimeSecs(s){
     if(s < 0) s = 0;
     const m = Math.floor(s/60).toString().padStart(2,'0');
@@ -148,20 +113,11 @@
     return `${m}:${sec}`;
   }
 
-  function setPhase(name){
-    phaseEl.textContent = name;
-  }
+  function setPhase(name){ phaseEl.textContent = name; }
+  function setCountdownText(text){ countdownEl.textContent = text; }
 
-  function setCountdownText(text){
-    countdownEl.textContent = text;
-  }
-
-  // Build stage layout: iframe (70vh), touch-pad (15vh), then keep URL input row below
   function renderStageWithIframe(src){
-    // Ensure stage is empty then assemble needed parts
     stage.innerHTML = '';
-
-    // iframe container
     const frameWrap = document.createElement('div');
     frameWrap.className = 'frame-wrap';
     frameWrap.setAttribute('role','region');
@@ -177,7 +133,6 @@
     frameWrap.appendChild(iframeEl);
     stage.appendChild(frameWrap);
 
-    // touch pad
     const touchWrap = document.createElement('div');
     touchWrap.className = 'touch-wrap';
     touchPad = document.createElement('div');
@@ -185,34 +140,22 @@
     touchPad.setAttribute('aria-label','Touch and hold button');
     touchPad.setAttribute('role','button');
     touchPad.setAttribute('tabindex','0');
-    // intentionally no inner text (solid button)
     touchWrap.appendChild(touchPad);
     stage.appendChild(touchWrap);
 
-    // keep url input row below for convenience (so user can change URL)
+    // keep url input row below for reload convenience
     stage.appendChild(initialUrlRow);
 
-    // bind events for touchPad
     bindTouchPadEvents();
 
-    // when iframe reports loaded, start main 2:30 countdown
     iframeEl.addEventListener('load', ()=> {
       startMainCountdown();
     });
-
-    // Also start main countdown after a small timeout if load event blocked (some sites)
-    // This ensures the flow continues even if load doesn't fire due to X-Frame restrictions.
-    // But if site refuses to load in iframe, iframe will remain blank; still start countdown.
-    setTimeout(()=>{
-      if(!mainCountdownInterval){
-        // start only if not already started (in case load event fired)
-        startMainCountdown();
-      }
-    }, 1200);
+    // fallback start if load doesn't fire
+    setTimeout(()=>{ if(!mainCountdownInterval) startMainCountdown(); }, 1200);
   }
 
   function restoreInitialUrlRow(){
-    // remove existing stage content and append initialUrlRow if missing
     stage.innerHTML = '';
     stage.appendChild(initialUrlRow);
     iframeEl = null;
@@ -222,9 +165,8 @@
     setCountdownText('--:--');
   }
 
-  // Start the 2:30 main countdown (no holding required)
   function startMainCountdown(){
-    if(mainCountdownInterval) return; // already running
+    if(mainCountdownInterval) return;
     mainRemaining = MAIN_SECONDS;
     setPhase('active');
     setCountdownText(fmtTimeSecs(mainRemaining));
@@ -234,48 +176,57 @@
       if(mainRemaining <= 0){
         clearInterval(mainCountdownInterval);
         mainCountdownInterval = null;
-        enterPhase2(); // start monitoring phase
+        enterPhase2();
       }
     }, 1000);
   }
 
-  // Phase 2: monitoring — user must ensure the button is not left untouched more than 20s
+  // Phase2 behavior per your spec:
+  // - countdownMs initially = 20000
+  // - The 20s countdown decrements ONLY while button is NOT being touched.
+  // - If user touches the button: countdownMs resets to 20000 and freezes (stays at 20000 until released).
+  // - If user releases: countdown resumes from 20000 down to 0.
   function enterPhase2(){
     phase2Active = true;
     setPhase('monitoring');
-    // initialize lastInteractionAt so user has MONITOR_LIMIT_MS to touch for the first time
-    lastInteractionAt = Date.now();
-    isTouching = false;
+    // initialize countdown
+    countdownMs = MONITOR_LIMIT_MS;
+    setCountdownText(fmtTimeFromMs(countdownMs));
+    // ensure visual initially blinking (not touched)
+    if(touchPad) touchPad.classList.add('blink');
 
-    // ensure visual is blinking initially (since not touching)
-    if(touchPad){
-      touchPad.classList.add('blink');
-    }
-
-    // monitor loop
+    // set up monitor interval to update UI and decrement when not touching
     if(monitorInterval) clearInterval(monitorInterval);
+    let lastTick = Date.now();
     monitorInterval = setInterval(()=>{
-      if(!phase2Active) return;
       const now = Date.now();
-      // compute remaining until auto-clear based on lastInteractionAt (release time)
-      const elapsed = now - (lastInteractionAt || now);
-      const remainMs = Math.max(0, MONITOR_LIMIT_MS - elapsed);
-      const remainSecs = Math.ceil(remainMs/1000);
-      setCountdownText(fmtTimeSecs(remainSecs));
-      // toggle blink class: blink when NOT currently touching
-      if(touchPad){
-        if(isTouching){
-          touchPad.classList.remove('blink');
-        } else {
-          touchPad.classList.add('blink');
-        }
+      const delta = now - lastTick;
+      lastTick = now;
+
+      if(isTouching){
+        // reset and freeze at full 20s while touching
+        countdownMs = MONITOR_LIMIT_MS;
+      } else {
+        // decrement by elapsed ms only when not touching
+        countdownMs = Math.max(0, countdownMs - delta);
       }
-      // if too long untouched -> clear iframe
-      if(elapsed >= MONITOR_LIMIT_MS){
-        // clear
+
+      // update displayed timer (ceil seconds)
+      setCountdownText(fmtTimeFromMs(countdownMs));
+
+      // visual blink when NOT touching
+      if(touchPad){
+        if(isTouching) touchPad.classList.remove('blink');
+        else touchPad.classList.add('blink');
+      }
+
+      // if reaches 0 -> clear iframe
+      if(countdownMs <= 0){
+        clearInterval(monitorInterval);
+        monitorInterval = null;
         clearStageIframe();
       }
-    }, 200);
+    }, 100); // 100ms tick for smoothness
   }
 
   function stopAllTimers(){
@@ -283,120 +234,84 @@
     if(monitorInterval){ clearInterval(monitorInterval); monitorInterval = null; }
     phase2Active = false;
     isTouching = false;
-    lastInteractionAt = null;
+    countdownMs = MONITOR_LIMIT_MS;
   }
 
-  // Remove iframe and reset UI to initial state
   function clearStageIframe(){
-    // destroy iframe to be safe
     if(iframeEl){
       try{ iframeEl.src = 'about:blank'; } catch(e){}
     }
-    // show placeholder message in frame-wrap
     stage.innerHTML = '';
     const placeholder = document.createElement('div');
     placeholder.className = 'frame-wrap placeholder';
     placeholder.innerHTML = '<div class="placeholder">Iframe cleared — touch pad was left untouched for too long.</div>';
     stage.appendChild(placeholder);
-
-    // add url input row below so user can reload
     stage.appendChild(initialUrlRow);
-
-    // stop timers & reset header
     stopAllTimers();
     setPhase('idle');
     setCountdownText('--:--');
   }
 
-  // Touch & mouse & keyboard handlers for touchPad
   function bindTouchPadEvents(){
     if(!touchPad) return;
 
-    // On touchstart / mousedown / keydown (space/enter) -> mark touching
     const startHandler = (ev)=>{
-      if(!phase2Active) {
-        // if phase2 not active, touching simply marks interaction but not necessary
-        // We'll still update lastInteractionAt so a user who touches during phase1 is recorded.
-      }
+      // when user touches/presses: mark touching, reset countdown to full and freeze
       isTouching = true;
-      lastInteractionAt = Date.now(); // reset "untouched" window immediately
+      countdownMs = MONITOR_LIMIT_MS; // reset to 20s immediately
       touchPad.classList.add('active');
-      // prevent page dragging
+      // prevent default to avoid scrolling/pinch issues
       if(ev && ev.preventDefault) ev.preventDefault();
     };
 
-    // On touchend / mouseup / keyup -> mark not touching and record timestamp
     const endHandler = (ev)=>{
+      // when user releases: stop touching => countdown will resume from full 20s
       isTouching = false;
-      lastInteractionAt = Date.now(); // start counting from release time
       touchPad.classList.remove('active');
-
-      // IMPORTANT: The requirement says "once 20s phase started user cannot leave the touch hold button untouched more than 20s.
-      // If they didn't touch iframe should be empty." This is implemented by the monitor interval above.
-      // We DO NOT clear immediately on release; we give up to 20s for them to touch again.
-      // However you told earlier you wanted "must continuously hold" in another variant; if you want immediate clear on any release, change here to call clearStageIframe().
+      // no immediate clear; countdown resumes and will clear if it reaches zero
     };
 
     // Mouse
-    touchPad.addEventListener('mousedown', startHandler);
-    window.addEventListener('mouseup', (e)=>{
-      // only if we were touching on pad do we end
-      if(isTouching) endHandler(e);
-    });
+    touchPad.addEventListener('mousedown', (e)=>{ if(phase2Active) startHandler(e); });
+    window.addEventListener('mouseup', (e)=>{ if(phase2Active && isTouching) endHandler(e); });
 
     // Touch (mobile)
-    touchPad.addEventListener('touchstart', startHandler, {passive:false});
-    touchPad.addEventListener('touchend', (e)=>{ endHandler(e); }, {passive:true});
-    touchPad.addEventListener('touchcancel', (e)=>{ endHandler(e); }, {passive:true});
+    touchPad.addEventListener('touchstart', (e)=>{ if(phase2Active) startHandler(e); }, {passive:false});
+    touchPad.addEventListener('touchend', (e)=>{ if(phase2Active) endHandler(e); }, {passive:true});
+    touchPad.addEventListener('touchcancel', (e)=>{ if(phase2Active) endHandler(e); }, {passive:true});
 
-    // Keyboard: Space or Enter acts as press+hold. Keydown = start, keyup = end.
+    // Keyboard: Space or Enter acts as press+hold
     touchPad.addEventListener('keydown', (e)=>{
-      if(e.key === ' ' || e.key === 'Enter'){
-        // prevent page scroll on space
-        e.preventDefault();
-        if(!isTouching) startHandler(e);
-      }
+      if(!phase2Active) return;
+      if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); if(!isTouching) startHandler(e); }
     });
     touchPad.addEventListener('keyup', (e)=>{
-      if(e.key === ' ' || e.key === 'Enter'){
-        endHandler(e);
-      }
+      if(!phase2Active) return;
+      if(e.key === ' ' || e.key === 'Enter'){ endHandler(e); }
     });
 
-    // Also record click/tap as interaction so user can periodically tap to reset timer
+    // clicks also treated as an interaction that resets countdown to full (and freeze only while held)
     touchPad.addEventListener('click', (e)=>{
-      // click toggles nothing, but is treated as interaction - update lastInteractionAt
-      lastInteractionAt = Date.now();
+      if(phase2Active){
+        // a click (tap) will briefly set isTouching true (depending on sequence) — ensure reset
+        // we reset countdownMs so that quick taps give the full 20s again
+        countdownMs = MONITOR_LIMIT_MS;
+      }
     });
   }
 
-  // Load button handler: inject iframe & touch pad and start flow
   loadBtn.addEventListener('click', ()=>{
     const raw = urlInput.value.trim();
-    if(!raw){
-      alert('Please enter a URL');
-      return;
-    }
+    if(!raw){ alert('Please enter a URL'); return; }
     const url = (raw.startsWith('http://') || raw.startsWith('https://')) ? raw : ('https://' + raw);
-
-    // reset any previous timers/stage
     stopAllTimers();
-
-    // render stage (iframe + touch pad + url input)
     renderStageWithIframe(url);
-
-    // ensure the URL input remains functional (it lives inside initialUrl which was moved).
-    // If user wants to load a new URL, they can use the input below the iframe.
   });
 
-  // Enter key on url input
-  urlInput.addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter') loadBtn.click();
-  });
+  urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') loadBtn.click(); });
 
-  // On page load show initial state
+  // show initial
   restoreInitialUrlRow();
-
 })();
 </script>
 </body>
