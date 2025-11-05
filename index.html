@@ -1,378 +1,263 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quiz Secure</title>
-<style>
-  /* Mobile-first styles */
-  :root{
-    --bg:#071422; --card:rgba(255,255,255,0.02); --muted:#94a3b8; --accent:#06b6d4;
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
-    background:linear-gradient(180deg,#071422 0%, #081827 100%);
-    color:#e6eef6;
-    min-height:100vh;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    padding:12px;
-    gap:12px;
-  }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quiz Guard</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#06b6d4; --muted:#94a3b8; --danger:#fb7185;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#e6eef6;background:linear-gradient(180deg,#071022 0%, #081426 100%);}
+    .app{min-height:100vh;display:flex;flex-direction:column;align-items:center}
+    header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-sizing:border-box;background:rgba(255,255,255,0.02);backdrop-filter:blur(4px);}
+    .title{display:flex;flex-direction:column}
+    .title h1{margin:0;font-size:1.1rem;letter-spacing:0.4px}
+    .subtitle{font-size:0.85rem;color:var(--muted)}
 
-  header{ width:100%; max-width:980px; display:flex; justify-content:space-between; align-items:center; }
-  h1{ font-size:18px; margin:0; font-weight:600; }
+    .timers{display:flex;gap:16px;align-items:center}
+    .timer{padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.02);min-width:120px;text-align:center}
+    .timer .label{font-size:0.75rem;color:var(--muted)}
+    .timer .value{font-weight:700;font-size:1.0rem}
 
-  /* Controls wrapper (initially visible). Will be hidden after open. */
-  #controlsWrapper{
-    width:90vw; max-width:980px;
-    display:flex; gap:8px; align-items:center;
-  }
-  input[type="url"]{
-    flex:1; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.06);
-    background:var(--card); color:inherit; outline:none; font-size:15px;
-  }
-  button{
-    padding:9px 12px; border-radius:10px; border:0; background:var(--accent); color:black; font-weight:700;
-    font-size:14px;
-  }
-  #openBtn{ min-width:72px; }
-  #clearBtn{ background:#ef4444; color:white; }
+    main{width:100%;display:flex;flex-direction:column;align-items:center;gap:18px;padding:16px;box-sizing:border-box}
 
-  /* Stage layout: iframe + pad stacked (mobile-first: stack vertically) */
-  .stage{
-    width:90vw; max-width:980px; display:flex; flex-direction:column; gap:12px; align-items:center;
-  }
+    .url-card{width:90vw;max-width:980px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:14px;box-shadow:0 6px 24px rgba(2,6,23,0.6);display:flex;gap:8px;align-items:center}
+    .url-card input{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:1rem}
+    .url-card button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#022;cursor:pointer;font-weight:700}
 
-  .frameWrap{
-    width:90vw; max-width:980px; height:75vh; border-radius:12px; overflow:hidden; background:#07121a;
-    display:flex; align-items:center; justify-content:center; position:relative; border:1px solid rgba(255,255,255,0.03);
-  }
+    .frame-wrap{width:90vw;max-width:980px;height:75vh;display:flex;align-items:center;justify-content:center;}
+    iframe{width:100%;height:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 10px 40px rgba(2,6,23,0.6);}
 
-  iframe{
-    width:90vw; max-width:980px; height:75vh; border:0; display:none; background:white;
-  }
+    .holder{width:90vw;max-width:980px;display:flex;justify-content:center}
+    .touch-holder{display:none;user-select:none}
+    .touch-pad{width:100%;padding:18px;border-radius:12px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border:1px dashed rgba(255,255,255,0.04);text-align:center;font-weight:700}
+    .touch-pad.active{box-shadow:0 6px 30px rgba(6,182,212,0.12);border-style:solid}
 
-  .emptyMsg{ color:var(--muted); padding:18px; text-align:center; }
+    .progress{height:10px;border-radius:999px;background:rgba(255,255,255,0.03);overflow:hidden;margin-top:8px}
+    .bar{height:100%;width:0%}
 
-  /* pad card */
-  .padCard{
-    width:90vw; max-width:420px; background:var(--card); padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,0.03);
-    display:flex; flex-direction:column; align-items:center; gap:10px;
-  }
-  .pad{
-    width:180px; height:180px; border-radius:16px; display:flex; align-items:center; justify-content:center; user-select:none;
-    touch-action:none; border:2px dashed rgba(255,255,255,0.06); background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-  }
-  .pad.pressed{ border-style: solid; box-shadow: 0 10px 30px rgba(6,182,212,0.10); transform: translateY(1px); }
-  .padLabel{ color:var(--muted); text-align:center; font-size:14px; }
+    .muted-note{font-size:0.85rem;color:var(--muted);margin-top:8px;text-align:center}
 
-  .infoRow{ width:100%; display:flex; justify-content:space-between; gap:8px; font-size:13px; color:var(--muted); }
-
-  /* Floating refresh button (visible after URL open). Small show-controls button too. */
-  .floatingBtns{
-    position:fixed; right:12px; bottom:12px; display:flex; flex-direction:column; gap:8px; z-index:9999;
-  }
-  .fab{
-    background:var(--accent); color:black; border-radius:10px; padding:10px 12px; font-weight:700; border:0;
-    box-shadow:0 8px 24px rgba(6,182,212,0.12);
-  }
-  .smallFab{ background:rgba(0,0,0,0.55); color:#e6eef6; padding:8px 10px; font-weight:600; border-radius:8px; border:0; }
-
-  /* Larger screens: use side-by-side layout */
-  @media (min-width:920px){
-    .stage{ flex-direction:row; align-items:flex-start; gap:16px; }
-    .frameWrap{ flex:1; height:75vh; }
-    .padCard{ width:320px; }
-    .pad{ width:220px; height:220px; }
-    iframe{ width:90vw; height:75vh; }
-  }
-</style>
+    /* responsive tweaks */
+    @media (max-width:720px){
+      .url-card{padding:12px}
+      .timer{min-width:90px}
+      header{padding:0 12px}
+    }
+  </style>
 </head>
 <body>
-  <header>
-    <h1>Quiz Secure</h1>
-    <div id="statusMini" style="font-size:13px;color:var(--muted)">Status: <strong id="stateText">idle</strong></div>
-  </header>
+  <div class="app">
+    <header>
+      <div class="title">
+        <h1>Quiz Guard</h1>
+        <div class="subtitle">Enter a URL below to load it in the protected iframe</div>
+      </div>
+      <div class="timers">
+        <div class="timer">
+          <div class="label">Phase</div>
+          <div id="phase" class="value">idle</div>
+        </div>
+        <div class="timer">
+          <div class="label">Timer</div>
+          <div id="countdown" class="value">--:--</div>
+        </div>
+      </div>
+    </header>
 
-  <!-- initial controls: hidden after open -->
-  <div id="controlsWrapper">
-    <input id="urlInput" type="url" placeholder="Enter URL (https://example.com)" value="https://example.com" />
-    <button id="openBtn">Open</button>
-    <button id="clearBtn">Clear</button>
-  </div>
+    <main>
+      <div class="url-card" role="region" aria-label="URL loader">
+        <input id="urlInput" type="url" placeholder="https://example.com" aria-label="URL to load" />
+        <button id="loadBtn">Load</button>
+      </div>
 
-  <main class="stage">
-    <div class="frameWrap" id="frameWrap">
-      <div id="emptyNotice" class="emptyMsg">Iframe is empty. Paste a URL and tap Open.</div>
-      <iframe id="theFrame" sandbox=""></iframe>
-    </div>
+      <div class="frame-wrap" id="frameWrap">
+        <!-- iframe will be injected here -->
+        <div id="placeholder" style="color:var(--muted);text-align:center;">No page loaded — enter a URL and press Load</div>
+      </div>
 
-    <div class="padCard">
-      <div class="pad" id="pad" tabindex="0" aria-label="Touch pad">
-        <div style="text-align:center">
-          <div style="font-size:30px">🖐️</div>
-          <div class="padLabel">Keep finger here</div>
+      <div class="holder">
+        <div class="touch-holder" id="touchHolder">
+          <div id="touchPad" class="touch-pad" tabindex="0">Place and hold your finger here during the 20s warning phase</div>
+          <div class="progress"><div id="pressBar" class="bar" style="background:linear-gradient(90deg,var(--accent),var(--danger));"></div></div>
+          <div class="muted-note">On desktop: click and hold (mouse) continuously. On mobile: touch and hold.</div>
         </div>
       </div>
 
-      <div class="infoRow">
-        <div>Phase: <strong id="phaseLabel">—</strong></div>
-        <div>Clear in: <strong id="countdown">0.0s</strong></div>
-      </div>
-      <div style="width:100%;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:13px;color:var(--muted)">Phase2 in: <span id="phaseSwitchCountdown">—</span></div>
-        <div id="logLine" style="font-size:13px;color:#ffb4a2;display:none">hung / retry</div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Floating buttons: hidden until URL opened -->
-  <div class="floatingBtns" id="floatingBtns" style="display:none;">
-    <button id="refreshBtn" class="fab">Refresh iframe</button>
-    <button id="showControlsBtn" class="smallFab">Show controls</button>
+    </main>
   </div>
 
 <script>
-(() => {
-  /* CONFIG */
-  const PHASE1_ALLOW = 120.0; // seconds
-  const PHASE2_ALLOW = 20.0;  // seconds
-  const PHASE_SWITCH_AFTER_MS = 120000; // 2 minutes
-  const TICK_MS = 100;
-  // hang detection / reload settings (kept mild)
-  const LOAD_HANG_TIMEOUT_MS = 15000;
-  const MAX_LOAD_RETRIES = 2;
-
-  /* ELEMENTS */
+(function(){
+  const loadBtn = document.getElementById('loadBtn');
   const urlInput = document.getElementById('urlInput');
-  const openBtn = document.getElementById('openBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const controlsWrapper = document.getElementById('controlsWrapper');
-
-  const iframe = document.getElementById('theFrame');
-  const emptyNotice = document.getElementById('emptyNotice');
-  const stateText = document.getElementById('stateText');
-
-  const pad = document.getElementById('pad');
-  const phaseLabel = document.getElementById('phaseLabel');
+  const frameWrap = document.getElementById('frameWrap');
+  const placeholder = document.getElementById('placeholder');
+  const phaseEl = document.getElementById('phase');
   const countdownEl = document.getElementById('countdown');
-  const phaseSwitchCountdownEl = document.getElementById('phaseSwitchCountdown');
-  const logLine = document.getElementById('logLine');
+  const touchHolder = document.getElementById('touchHolder');
+  const touchPad = document.getElementById('touchPad');
+  const pressBar = document.getElementById('pressBar');
 
-  const floatingBtns = document.getElementById('floatingBtns');
-  const refreshBtn = document.getElementById('refreshBtn');
-  const showControlsBtn = document.getElementById('showControlsBtn');
+  let iframe = null;
+  let mainTimer = null; // 150s
+  let warningTimer = null; // 20s
+  let mainRemaining = 0;
+  let warningRemaining = 0;
+  let holding = false;
+  let holdAccum = 0; // ms of current hold during warning
 
-  /* STATE */
-  let phase = 'idle';
-  let currentAllow = PHASE1_ALLOW;
-  let untouchedTimer = currentAllow;
-  let isPressed = false;
-  let tickInterval = null;
-  let openTime = null;
-  let loadHangTimer = null;
-  let loadRetries = 0;
-  let lastOpenedUrl = null;
-
-  /* HELPERS */
-  function setState(s){ stateText.textContent = s; }
-  function showFloating(){ floatingBtns.style.display = 'flex'; }
-  function hideFloating(){ floatingBtns.style.display = 'none'; }
-  function hideControls(){ controlsWrapper.style.display = 'none'; }
-  function showControls(){ controlsWrapper.style.display = 'flex'; }
-
-  function normalizeUrl(raw){
-    if (!raw) return null;
-    let u = raw.trim();
-    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
-    try { new URL(u); return u; } catch(e){ return null; }
-  }
-
-  /* IFRAME LOAD & HANG DETECTION */
-  function scheduleLoadHangTimer(){
-    clearLoadHangTimer();
-    loadHangTimer = setTimeout(() => onIframeHang(), LOAD_HANG_TIMEOUT_MS);
-  }
-  function clearLoadHangTimer(){ if (loadHangTimer){ clearTimeout(loadHangTimer); loadHangTimer = null; } }
-
-  function onIframeHang(){
-    logLine.style.display = 'block'; logLine.textContent = `Hang detected — retry ${loadRetries+1}/${MAX_LOAD_RETRIES}`;
-    setState('hang-detected');
-    loadRetries++;
-    if (loadRetries <= MAX_LOAD_RETRIES){
-      try { iframe.src = iframe.src; } catch(e){ iframe.src = iframe.getAttribute('src'); }
-      scheduleLoadHangTimer();
-    } else {
-      logLine.textContent = 'Still failing after retries';
-      // hide message after a short while
-      setTimeout(()=>{ logLine.style.display='none'; }, 3500);
-    }
-  }
-
-  function loadIframe(url){
-    clearLoadHangTimer();
-    loadRetries = 0;
-    iframe.src = url;
-    iframe.style.display = 'block';
-    emptyNotice.style.display = 'none';
-    setState('loading');
-    scheduleLoadHangTimer();
+  function formatTime(s){
+    if (s < 0) s = 0;
+    const m = Math.floor(s/60).toString().padStart(2,'0');
+    const sec = Math.floor(s%60).toString().padStart(2,'0');
+    return `${m}:${sec}`;
   }
 
   function clearIframe(){
-    iframe.src = 'about:blank';
-    iframe.style.display = 'none';
-    emptyNotice.style.display = '';
-    setState('cleared');
-    phase = 'cleared';
-    openTime = null;
-    currentAllow = PHASE1_ALLOW;
-    untouchedTimer = currentAllow;
-    stopTicker();
-    clearLoadHangTimer();
-    hideFloating();
-    showControls();
-    updateUI();
-  }
-
-  function onIframeLoaded(){
-    clearLoadHangTimer();
-    loadRetries = 0;
-    logLine.style.display = 'none';
-    setState('iframe loaded');
-    // Hide the URL controls when iframe has loaded (per your request)
-    hideControls();
-    showFloating();
-  }
-
-  /* PAD + TWO-PHASE TIMING */
-  function enterPhase1(){
-    phase = 'phase1';
-    currentAllow = PHASE1_ALLOW;
-    untouchedTimer = currentAllow;
-    openTime = Date.now();
-    phaseLabel.textContent = 'Phase 1 (120s)';
-    setState('phase1');
-  }
-  function enterPhase2(){
-    phase = 'phase2';
-    currentAllow = PHASE2_ALLOW;
-    if (untouchedTimer > currentAllow) untouchedTimer = currentAllow;
-    phaseLabel.textContent = 'Phase 2 (20s)';
-    setState('phase2');
-  }
-
-  function resetUntouchedTimer(){ untouchedTimer = currentAllow; updateUI(); }
-
-  function updateUI(){
-    countdownEl.textContent = untouchedTimer.toFixed(1) + 's';
-    if (phase === 'phase1' && openTime){
-      const msLeft = Math.max(0, PHASE_SWITCH_AFTER_MS - (Date.now() - openTime));
-      phaseSwitchCountdownEl.textContent = (msLeft/1000).toFixed(1) + 's';
-    } else phaseSwitchCountdownEl.textContent = '—';
-  }
-
-  function startTicker(){
-    if (tickInterval) return;
-    tickInterval = setInterval(() => {
-      if (phase === 'phase1' && openTime && (Date.now() - openTime >= PHASE_SWITCH_AFTER_MS)){
-        enterPhase2();
-      }
-      if (!isPressed && (phase === 'phase1' || phase === 'phase2')){
-        untouchedTimer -= (TICK_MS / 1000);
-        if (untouchedTimer <= 0){
-          untouchedTimer = 0;
-          clearIframe();
-          return;
-        }
-      } else if (isPressed){
-        untouchedTimer = currentAllow;
-      }
-      updateUI();
-    }, TICK_MS);
-  }
-
-  function stopTicker(){ if (tickInterval){ clearInterval(tickInterval); tickInterval = null; } }
-
-  /* PAD EVENTS */
-  function onPressStart(e){
-    e.preventDefault();
-    if (isPressed) return;
-    isPressed = true;
-    pad.classList.add('pressed');
-    setState('pressed');
-    untouchedTimer = currentAllow;
-    updateUI();
-    startTicker();
-  }
-  function onPressEnd(e){
-    e.preventDefault();
-    if (!isPressed) return;
-    isPressed = false;
-    pad.classList.remove('pressed');
-    setState('released');
-    startTicker();
-  }
-  pad.addEventListener('pointerdown', onPressStart);
-  pad.addEventListener('pointerup', onPressEnd);
-  pad.addEventListener('pointercancel', onPressEnd);
-  pad.addEventListener('pointerleave', (e) => { if (isPressed && e.buttons === 0) onPressEnd(e); });
-  pad.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'Enter') onPressStart(e); });
-  pad.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'Enter') onPressEnd(e); });
-
-  /* BUTTONS */
-  openBtn.addEventListener('click', () => {
-    const url = normalizeUrl(urlInput.value);
-    if (!url) { alert('Enter a valid URL (http(s)://...)'); return; }
-    lastOpenedUrl = url;
-    loadIframe(url);
-    enterPhase1();
-    startTicker();
-  });
-
-  clearBtn.addEventListener('click', clearIframe);
-
-  refreshBtn.addEventListener('click', () => {
-    if (!lastOpenedUrl) return;
-    // simple reload the current iframe src
-    try { iframe.src = iframe.src; } catch(e){ iframe.src = iframe.getAttribute('src'); }
-    scheduleLoadHangTimer();
-    setState('manual refresh');
-  });
-
-  showControlsBtn.addEventListener('click', () => {
-    showControls();
-    hideFloating();
-  });
-
-  /* IFRAME EVENTS */
-  iframe.addEventListener('load', () => {
-    if (!iframe.src || iframe.src.endsWith('about:blank')) return;
-    onIframeLoaded();
-  });
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && isPressed){
-      isPressed = false;
-      pad.classList.remove('pressed');
-      setState('hidden');
+    if(iframe){
+      iframe.src = 'about:blank';
+      frameWrap.innerHTML = '<div style="color:var(--muted);text-align:center;">Iframe cleared — touch holder not held during warning.</div>';
+      iframe = null;
     }
-    startTicker();
+    phaseEl.textContent = 'idle';
+    countdownEl.textContent = '--:--';
+    touchHolder.style.display = 'none';
+    clearIntervals();
+  }
+
+  function clearIntervals(){
+    if(mainTimer){ clearInterval(mainTimer); mainTimer = null; }
+    if(warningTimer){ clearInterval(warningTimer); warningTimer = null; }
+  }
+
+  function startMainCountdown(){
+    mainRemaining = 150; // 2:30 --> 150 seconds
+    phaseEl.textContent = 'active';
+    countdownEl.textContent = formatTime(mainRemaining);
+    touchHolder.style.display = 'none';
+    mainTimer = setInterval(()=>{
+      mainRemaining -= 1;
+      countdownEl.textContent = formatTime(mainRemaining);
+      if(mainRemaining <= 0){
+        clearInterval(mainTimer);
+        mainTimer = null;
+        startWarningPhase();
+      }
+    },1000);
+  }
+
+  function startWarningPhase(){
+    warningRemaining = 20;
+    phaseEl.textContent = 'warning';
+    countdownEl.textContent = formatTime(warningRemaining);
+    touchHolder.style.display = 'block';
+    pressBar.style.width = '0%';
+    holdAccum = 0;
+
+    // we will track hold by polling every 100ms
+    const interval = 100;
+    warningTimer = setInterval(()=>{
+      // if user holding, increment holdAccum
+      if(holding){ holdAccum += interval; }
+      // compute percentage held so far relative to 20000ms
+      const pct = Math.min(100, (holdAccum / 20000) * 100);
+      pressBar.style.width = pct + '%';
+
+      // tick warningRemaining by 1s only on multiples of interval
+      // using simple ms countdown approximation
+      if((warningRemaining*1000) % 1000 === 0){} // noop
+      // decrement countdown once per 1000ms by tracking elapsed ms
+
+      // use a separate timer for seconds display
+      // We'll decrease warningRemaining every 1000ms by counting internal counter
+    }, interval);
+
+    // Accurate 1s countdown
+    let secondsPassed = 0;
+    const secondTicker = setInterval(()=>{
+      secondsPassed++;
+      warningRemaining = 20 - secondsPassed;
+      if(warningRemaining < 0) warningRemaining = 0;
+      countdownEl.textContent = formatTime(warningRemaining);
+      if(secondsPassed >= 20){
+        clearInterval(secondTicker);
+        if(!holding || holdAccum < 20000){
+          // user didn't hold continuously for full 20s: clear iframe
+          clearIntervals();
+          // small delay to allow UI to update
+          setTimeout(()=>{
+            clearIframe();
+          },200);
+        } else {
+          // user successfully held for full 20s
+          clearIntervals();
+          phaseEl.textContent = 'secure';
+          countdownEl.textContent = '00:00';
+          // keep iframe as is, hide touch holder after a short confirmation
+          setTimeout(()=>{ touchHolder.style.display='none'; pressBar.style.width='100%'; },800);
+        }
+      }
+    },1000);
+
+  }
+
+  function injectIframe(src){
+    frameWrap.innerHTML = '';
+    iframe = document.createElement('iframe');
+    iframe.src = src;
+    iframe.sandbox = 'allow-scripts allow-forms allow-same-origin allow-popups';
+    iframe.loading = 'lazy';
+    iframe.addEventListener('load', ()=>{
+      // start 2:30 countdown only when the iframe reports load
+      startMainCountdown();
+    });
+    frameWrap.appendChild(iframe);
+  }
+
+  // touch/hold handlers (works for mobile and desktop)
+  function startHolding(e){
+    e && e.preventDefault && e.preventDefault();
+    holding = true;
+    touchPad.classList.add('active');
+  }
+  function stopHolding(e){
+    holding = false;
+    touchPad.classList.remove('active');
+  }
+
+  // Event wiring
+  loadBtn.addEventListener('click', ()=>{
+    const url = urlInput.value.trim();
+    if(!url) return alert('Please enter a URL');
+    // normalize http(s)
+    const normalized = (url.startsWith('http://') || url.startsWith('https://')) ? url : 'https://' + url;
+    // clear any previous state
+    clearIntervals();
+    touchHolder.style.display = 'none';
+    injectIframe(normalized);
   });
 
-  /* INIT UI */
-  function init(){
-    phase = 'idle';
-    currentAllow = PHASE1_ALLOW;
-    untouchedTimer = currentAllow;
-    updateUI();
-    setState('idle');
-    hideFloating();
-  }
-  init();
+  // support Enter to load
+  urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') loadBtn.click(); });
+
+  // Desktop mouse events
+  touchPad.addEventListener('mousedown', (e)=>{ startHolding(e); });
+  window.addEventListener('mouseup', (e)=>{ stopHolding(e); });
+
+  // Touch events for mobile
+  touchPad.addEventListener('touchstart', (e)=>{ startHolding(e); });
+  touchPad.addEventListener('touchend', (e)=>{ stopHolding(e); });
+  touchPad.addEventListener('touchcancel', (e)=>{ stopHolding(e); });
+
+  // keyboard accessibility: space or enter to toggle (press+hold style simulated)
+  touchPad.addEventListener('keydown', (e)=>{
+    if(e.key === ' ' || e.key === 'Enter'){
+      startHolding(e);
+    }
+  });
+  touchPad.addEventListener('keyup',(e)=>{ if(e.key===' '|| e.key==='Enter') stopHolding(e); });
 
 })();
 </script>
