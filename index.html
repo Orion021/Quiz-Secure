@@ -31,8 +31,11 @@
 
     .holder{width:90vw;max-width:980px;display:flex;justify-content:center}
     .touch-holder{display:none;user-select:none}
-    .touch-pad{width:100%;padding:18px;border-radius:12px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border:1px dashed rgba(255,255,255,0.04);text-align:center;font-weight:700}
-    .touch-pad.active{box-shadow:0 6px 30px rgba(6,182,212,0.12);border-style:solid}
+    .touch-pad{width:100%;padding:18px;border-radius:12px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border:2px solid rgba(255,255,255,0.04);text-align:center;font-weight:700}
+    .touch-pad.active{box-shadow:0 6px 30px rgba(6,182,212,0.12);border-color:var(--accent)}
+    .touch-pad.blink{animation:blink 1s infinite;border-color:var(--danger);box-shadow:0 0 18px rgba(251,113,133,0.18)}
+
+    @keyframes blink{ 0%{opacity:1} 50%{opacity:0.35} 100%{opacity:1} }
 
     .progress{height:10px;border-radius:999px;background:rgba(255,255,255,0.03);overflow:hidden;margin-top:8px}
     .bar{height:100%;width:0%}
@@ -73,15 +76,14 @@
       </div>
 
       <div class="frame-wrap" id="frameWrap">
-        <!-- iframe will be injected here -->
         <div id="placeholder" style="color:var(--muted);text-align:center;">No page loaded — enter a URL and press Load</div>
       </div>
 
       <div class="holder">
         <div class="touch-holder" id="touchHolder">
-          <div id="touchPad" class="touch-pad" tabindex="0">Place and hold your finger here during the 20s warning phase</div>
+          <div id="touchPad" class="touch-pad" tabindex="0">Touch the pad whenever visible. After 2:30 you must not leave it untouched for more than 20s.</div>
           <div class="progress"><div id="pressBar" class="bar" style="background:linear-gradient(90deg,var(--accent),var(--danger));"></div></div>
-          <div class="muted-note">On desktop: click and hold (mouse) continuously. On mobile: touch and hold.</div>
+          <div class="muted-note">On desktop: click and hold briefly each interval. On mobile: tap and hold. If untouched for 20s, iframe will clear.</div>
         </div>
       </div>
 
@@ -101,12 +103,14 @@
   const pressBar = document.getElementById('pressBar');
 
   let iframe = null;
-  let mainTimer = null; // 150s
-  let warningTimer = null; // 20s
+  let mainTimer = null; // 180s
   let mainRemaining = 0;
-  let warningRemaining = 0;
-  let holding = false;
-  let holdAccum = 0; // ms of current hold during warning
+
+  // touch monitoring
+  let monitoring = false; // after main timer ends
+  let lastTouchedAt = null; // timestamp ms when user last touched
+  let isCurrentlyTouching = false;
+  let monitorInterval = null;
 
   function formatTime(s){
     if (s < 0) s = 0;
@@ -118,22 +122,25 @@
   function clearIframe(){
     if(iframe){
       iframe.src = 'about:blank';
-      frameWrap.innerHTML = '<div style="color:var(--muted);text-align:center;">Iframe cleared — touch holder not held during warning.</div>';
+      frameWrap.innerHTML = '<div style="color:var(--muted);text-align:center;">Iframe cleared — touch pad untouched for too long.</div>';
       iframe = null;
     }
     phaseEl.textContent = 'idle';
     countdownEl.textContent = '--:--';
     touchHolder.style.display = 'none';
-    clearIntervals();
+    stopMonitoring();
   }
 
-  function clearIntervals(){
-    if(mainTimer){ clearInterval(mainTimer); mainTimer = null; }
-    if(warningTimer){ clearInterval(warningTimer); warningTimer = null; }
+  function stopMonitoring(){
+    monitoring = false;
+    lastTouchedAt = null;
+    isCurrentlyTouching = false;
+    touchPad.classList.remove('blink');
+    if(monitorInterval){ clearInterval(monitorInterval); monitorInterval = null; }
   }
 
   function startMainCountdown(){
-    mainRemaining = 150; // 2:30 --> 150 seconds
+    mainRemaining = 180; // 3 minutes (as per user clarified 180s). If you meant 150s, change this to 150.
     phaseEl.textContent = 'active';
     countdownEl.textContent = formatTime(mainRemaining);
     touchHolder.style.display = 'none';
@@ -143,64 +150,42 @@
       if(mainRemaining <= 0){
         clearInterval(mainTimer);
         mainTimer = null;
-        startWarningPhase();
+        beginMonitoringPhase();
       }
     },1000);
   }
 
-  function startWarningPhase(){
-    warningRemaining = 20;
-    phaseEl.textContent = 'warning';
-    countdownEl.textContent = formatTime(warningRemaining);
+  function beginMonitoringPhase(){
+    phaseEl.textContent = 'monitoring';
+    countdownEl.textContent = '--:--';
     touchHolder.style.display = 'block';
+    monitoring = true;
+    lastTouchedAt = Date.now(); // allow immediate grace — user has 20s from this point to touch
+    isCurrentlyTouching = false;
     pressBar.style.width = '0%';
-    holdAccum = 0;
 
-    // we will track hold by polling every 100ms
-    const interval = 100;
-    warningTimer = setInterval(()=>{
-      // if user holding, increment holdAccum
-      if(holding){ holdAccum += interval; }
-      // compute percentage held so far relative to 20000ms
-      const pct = Math.min(100, (holdAccum / 20000) * 100);
+    // poll every 200ms to update UI and check for timeout
+    monitorInterval = setInterval(()=>{
+      const now = Date.now();
+      const elapsed = now - (lastTouchedAt || 0);
+      // If user is not currently touching, show blinking red
+      if(!isCurrentlyTouching){
+        touchPad.classList.add('blink');
+      } else {
+        touchPad.classList.remove('blink');
+      }
+      // update pressBar to reflect time since last touch (percentage of 20s)
+      const pct = Math.min(100, (elapsed / 20000) * 100);
       pressBar.style.width = pct + '%';
 
-      // tick warningRemaining by 1s only on multiples of interval
-      // using simple ms countdown approximation
-      if((warningRemaining*1000) % 1000 === 0){} // noop
-      // decrement countdown once per 1000ms by tracking elapsed ms
-
-      // use a separate timer for seconds display
-      // We'll decrease warningRemaining every 1000ms by counting internal counter
-    }, interval);
-
-    // Accurate 1s countdown
-    let secondsPassed = 0;
-    const secondTicker = setInterval(()=>{
-      secondsPassed++;
-      warningRemaining = 20 - secondsPassed;
-      if(warningRemaining < 0) warningRemaining = 0;
-      countdownEl.textContent = formatTime(warningRemaining);
-      if(secondsPassed >= 20){
-        clearInterval(secondTicker);
-        if(!holding || holdAccum < 20000){
-          // user didn't hold continuously for full 20s: clear iframe
-          clearIntervals();
-          // small delay to allow UI to update
-          setTimeout(()=>{
-            clearIframe();
-          },200);
-        } else {
-          // user successfully held for full 20s
-          clearIntervals();
-          phaseEl.textContent = 'secure';
-          countdownEl.textContent = '00:00';
-          // keep iframe as is, hide touch holder after a short confirmation
-          setTimeout(()=>{ touchHolder.style.display='none'; pressBar.style.width='100%'; },800);
-        }
+      // if elapsed exceeds 20s -> clear iframe
+      if(elapsed >= 20000){
+        clearInterval(monitorInterval);
+        monitorInterval = null;
+        // small delay to let UI show final blink
+        setTimeout(()=>{ clearIframe(); },200);
       }
-    },1000);
-
+    },200);
   }
 
   function injectIframe(src){
@@ -210,54 +195,57 @@
     iframe.sandbox = 'allow-scripts allow-forms allow-same-origin allow-popups';
     iframe.loading = 'lazy';
     iframe.addEventListener('load', ()=>{
-      // start 2:30 countdown only when the iframe reports load
+      // start main countdown only when iframe loads
       startMainCountdown();
     });
     frameWrap.appendChild(iframe);
   }
 
-  // touch/hold handlers (works for mobile and desktop)
-  function startHolding(e){
-    e && e.preventDefault && e.preventDefault();
-    holding = true;
+  // touch/hold handlers — we consider any touch or mouse press as a 'touch' that resets the 20s timer
+  function recordTouchStart(e){
+    isCurrentlyTouching = true;
+    lastTouchedAt = Date.now();
     touchPad.classList.add('active');
+    // visually fill the bar to indicate fresh touch
+    pressBar.style.width = '0%';
   }
-  function stopHolding(e){
-    holding = false;
+  function recordTouchEnd(e){
+    isCurrentlyTouching = false;
     touchPad.classList.remove('active');
+    // lastTouchedAt remains as the last moment of interaction
+    lastTouchedAt = lastTouchedAt || Date.now();
   }
 
   // Event wiring
   loadBtn.addEventListener('click', ()=>{
     const url = urlInput.value.trim();
     if(!url) return alert('Please enter a URL');
-    // normalize http(s)
     const normalized = (url.startsWith('http://') || url.startsWith('https://')) ? url : 'https://' + url;
-    // clear any previous state
-    clearIntervals();
+    // reset any previous state
+    if(mainTimer){ clearInterval(mainTimer); mainTimer = null; }
+    stopMonitoring();
     touchHolder.style.display = 'none';
     injectIframe(normalized);
   });
-
-  // support Enter to load
   urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') loadBtn.click(); });
 
   // Desktop mouse events
-  touchPad.addEventListener('mousedown', (e)=>{ startHolding(e); });
-  window.addEventListener('mouseup', (e)=>{ stopHolding(e); });
+  touchPad.addEventListener('mousedown', (e)=>{ if(monitoring) recordTouchStart(e); });
+  window.addEventListener('mouseup', (e)=>{ if(monitoring) recordTouchEnd(e); });
 
   // Touch events for mobile
-  touchPad.addEventListener('touchstart', (e)=>{ startHolding(e); });
-  touchPad.addEventListener('touchend', (e)=>{ stopHolding(e); });
-  touchPad.addEventListener('touchcancel', (e)=>{ stopHolding(e); });
+  touchPad.addEventListener('touchstart', (e)=>{ if(monitoring) recordTouchStart(e); });
+  touchPad.addEventListener('touchend', (e)=>{ if(monitoring) recordTouchEnd(e); });
+  touchPad.addEventListener('touchcancel', (e)=>{ if(monitoring) recordTouchEnd(e); });
 
-  // keyboard accessibility: space or enter to toggle (press+hold style simulated)
+  // keyboard accessibility: tapping space/enter counts as a touch
   touchPad.addEventListener('keydown', (e)=>{
+    if(!monitoring) return;
     if(e.key === ' ' || e.key === 'Enter'){
-      startHolding(e);
+      recordTouchStart(e);
     }
   });
-  touchPad.addEventListener('keyup',(e)=>{ if(e.key===' '|| e.key==='Enter') stopHolding(e); });
+  touchPad.addEventListener('keyup',(e)=>{ if(!monitoring) return; if(e.key===' '|| e.key==='Enter') recordTouchEnd(e); });
 
 })();
 </script>
