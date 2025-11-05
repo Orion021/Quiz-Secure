@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Touch-guarded iframe — Two-phase timing</title>
+<style>
+  :root{
+    --bg:#0f1720; --card:#0b1220; --accent:#06b6d4; --muted:#94a3b8; 
+  }
+  body{
+    margin:0;
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+    background:linear-gradient(180deg,#071422 0%, #081827 100%);
+    color:#e6eef6;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:18px;
+    min-height:100vh;
+    gap:16px;
+  }
+
+  h2 { text-align:center; margin:0.5em 0; }
+
+  .controls{
+    display:flex; gap:8px;
+    width:95vw; max-width:1100px;
+  }
+
+  input[type="url"]{
+    flex:1; padding:10px 12px; border-radius:8px;
+    border:1px solid rgba(255,255,255,0.06);
+    background:rgba(255,255,255,0.02); color:inherit; outline:none;
+  }
+
+  button{
+    padding:10px 14px; border-radius:8px;
+    border:0; background:var(--accent); color:black; font-weight:600;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 1fr 320px;
+    gap:16px;
+    width:95vw; max-width:1100px;
+    align-items:start;
+  }
+
+  .frameCard, .padCard{
+    background:rgba(255,255,255,0.02);
+    border-radius:12px; padding:12px;
+    border:1px solid rgba(255,255,255,0.03);
+    box-shadow:0 6px 18px rgba(2,6,23,0.6);
+  }
+
+  /* 👇 This defines the iframe size */
+  .frameWrap{
+    width:95vw;
+    height:70vh;
+    max-width:1100px;
+    position:relative;
+    border-radius:8px;
+    overflow:hidden;
+    background:#07121a;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  iframe{ width:100%; height:100%; border:0; background:white; }
+
+  .placeholder{
+    width:100%; height:300px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+  }
+
+  .pad{
+    width:220px; height:220px; border-radius:18px;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border:2px dashed rgba(255,255,255,0.06);
+    user-select:none; -webkit-user-select:none;
+    touch-action:none;
+    position:relative;
+  }
+  .pad.pressed{
+    border-style:solid;
+    box-shadow:0 6px 20px rgba(6,182,212,0.12);
+    transform:translateY(1px);
+  }
+
+  .padLabel{ text-align:center; color:var(--muted); font-size:14px; }
+  .countdown{ font-size:20px; font-weight:700; color:var(--accent); }
+  .status{ font-size:13px; color:var(--muted); margin-top:8px; }
+  .hint{ font-size:13px; color:var(--muted); margin-top:8px; }
+  .small{ font-size:13px; color:var(--muted); }
+  .warning{ color:#ffb4a2; font-size:13px; }
+  .emptyMsg{ color:var(--muted); font-size:14px; padding:18px; text-align:center; }
+
+  @media (max-width:900px){
+    .layout{ grid-template-columns: 1fr; }
+    .pad{ width:180px; height:180px; }
+    .frameWrap{ width:95vw; height:65vh; }
+  }
+</style>
+</head>
+<body>
+  <h2>Secure Quiz Page</h2>
+
+  <div class="controls">
+    <input id="urlInput" type="url" placeholder="Enter a URL (https://example.com)" value="https://example.com">
+    <button id="openBtn">Open</button>
+    <button id="clearBtn" title="Clear iframe">Clear</button>
+  </div>
+
+  <div class="layout">
+    <div class="frameCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <!--<div class="small">Iframe view (clears if pad untouched beyond allowed window)</div>-->
+        <div id="iframeState" class="small">Status: <strong id="stateText">idle</strong></div>
+      </div>
+
+      <div class="frameWrap" id="frameWrap">
+        <div id="emptyNotice" class="emptyMsg">Iframe is empty. Paste a URL and click Open.</div>
+        <iframe id="theFrame" style="display:none;"></iframe>
+      </div>
+    </div>
+
+    <div class="padCard">
+      <div class="placeholder">
+        <div id="pad" class="pad" tabindex="0" aria-label="Touch pad">
+          <div>
+            <div id="padIcon">🖐️</div>
+            <div class="padLabel">Place your finger here</div>
+          </div>
+        </div>
+
+        <div class="status">
+          <div>Current phase: <strong id="phaseLabel">—</strong></div>
+          <div>Time until iframe clears (if pad untouched): <span class="countdown" id="countdown">0.0</span>s</div>
+          <div style="margin-top:6px;">Time until Phase 2 starts: <span id="phaseSwitchCountdown">—</span></div>
+        </div>
+
+        <div class="hint">Phase 1 allows 120 s of no-touch; after 2 min Phase 2 allows only 20 s.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const openBtn = document.getElementById('openBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const urlInput = document.getElementById('urlInput');
+  const iframe = document.getElementById('theFrame');
+  const emptyNotice = document.getElementById('emptyNotice');
+  const stateText = document.getElementById('stateText');
+  const pad = document.getElementById('pad');
+  const countdownEl = document.getElementById('countdown');
+  const phaseLabelEl = document.getElementById('phaseLabel');
+  const phaseSwitchCountdownEl = document.getElementById('phaseSwitchCountdown');
+
+  const PHASE1_ALLOW = 180.0;
+  const PHASE2_ALLOW = 20.0;
+  const PHASE_SWITCH_AFTER = 120000;
+  const TICK_MS = 100;
+
+  let currentAllow = PHASE1_ALLOW;
+  let untouchedTimer = PHASE1_ALLOW;
+  let isPressed = false;
+  let tickInterval = null;
+  let openTime = null;
+  let phase = 'idle';
+
+  const setStateText = s => stateText.textContent = s;
+  const setPhaseLabel = p => phaseLabelEl.textContent = p;
+
+  function normalizeUrl(raw){
+    if(!raw) return null;
+    let url = raw.trim();
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    try{ new URL(url); return url; }catch{return null;}
+  }
+
+  function openUrl(raw){
+    const url = normalizeUrl(raw);
+    if(!url){ alert('Enter a valid URL'); return; }
+    iframe.src = url;
+    iframe.style.display='block';
+    emptyNotice.style.display='none';
+    openTime = Date.now();
+    phase='phase1'; currentAllow=PHASE1_ALLOW; untouchedTimer=currentAllow;
+    setPhaseLabel('Phase 1 (120 s allowed)');
+    setStateText('loaded');
+    startTicker();
+  }
+
+  function clearIframe(){
+    iframe.src='about:blank'; iframe.style.display='none'; emptyNotice.style.display='';
+    phase='cleared'; openTime=null;
+    currentAllow=PHASE1_ALLOW; untouchedTimer=currentAllow;
+    setPhaseLabel('cleared'); setStateText('cleared');
+    stopTicker(); updateUI();
+  }
+
+  const updateUI=()=>{
+    countdownEl.textContent = untouchedTimer.toFixed(1);
+    if(phase==='phase1' && openTime){
+      const msLeft=Math.max(0,PHASE_SWITCH_AFTER-(Date.now()-openTime));
+      phaseSwitchCountdownEl.textContent=(msLeft/1000).toFixed(1)+'s';
+    }else phaseSwitchCountdownEl.textContent='—';
+  };
+
+  function startTicker(){
+    if(tickInterval) return;
+    tickInterval=setInterval(()=>{
+      if(phase==='phase1' && openTime && Date.now()-openTime>=PHASE_SWITCH_AFTER){
+        phase='phase2'; currentAllow=PHASE2_ALLOW;
+        if(untouchedTimer>currentAllow) untouchedTimer=currentAllow;
+        setPhaseLabel('Phase 2 (20 s allowed)');
+      }
+      if(!isPressed && (phase==='phase1'||phase==='phase2')){
+        untouchedTimer-=(TICK_MS/1000);
+        if(untouchedTimer<=0){ untouchedTimer=0; clearIframe(); return; }
+      }else if(isPressed){ untouchedTimer=currentAllow; }
+      updateUI();
+    },TICK_MS);
+  }
+  const stopTicker=()=>{ if(tickInterval){ clearInterval(tickInterval); tickInterval=null; } };
+
+  function onPressStart(e){ e.preventDefault(); if(isPressed) return;
+    isPressed=true; pad.classList.add('pressed'); setStateText('pressed');
+    untouchedTimer=currentAllow; updateUI(); startTicker();
+  }
+  function onPressEnd(e){ e.preventDefault(); if(!isPressed) return;
+    isPressed=false; pad.classList.remove('pressed'); setStateText('released'); startTicker();
+  }
+
+  pad.addEventListener('pointerdown',onPressStart);
+  pad.addEventListener('pointerup',onPressEnd);
+  pad.addEventListener('pointercancel',onPressEnd);
+  pad.addEventListener('pointerleave',e=>{ if(isPressed&&e.buttons===0) onPressEnd(e); });
+  pad.addEventListener('keydown',e=>{ if(e.code==='Space'||e.code==='Enter') onPressStart(e); });
+  pad.addEventListener('keyup',e=>{ if(e.code==='Space'||e.code==='Enter') onPressEnd(e); });
+
+  openBtn.onclick=()=>openUrl(urlInput.value);
+  clearBtn.onclick=()=>clearIframe();
+  urlInput.addEventListener('keydown',e=>{ if(e.key==='Enter') openUrl(urlInput.value); });
+
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&isPressed){ isPressed=false; pad.classList.remove('pressed'); setStateText('hidden'); }
+    startTicker();
+  });
+
+  iframe.addEventListener('load',()=>setStateText('iframe loaded'));
+  (function init(){ phase='idle'; setPhaseLabel('idle'); untouchedTimer=PHASE1_ALLOW; updateUI(); setStateText('idle'); })();
+})();
+</script>
+</body>
+</html>
