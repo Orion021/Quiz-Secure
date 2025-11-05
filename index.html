@@ -3,146 +3,81 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Touch-guarded iframe — Two-phase timing</title>
+<title>Iframe touch-guard (90% viewport) — keep touching inside iframe</title>
 <style>
   :root{
-    --bg:#0f1720; --card:#0b1220; --accent:#06b6d4; --muted:#94a3b8; 
+    --bg:#071021; --card:#081422; --accent:#06b6d4; --muted:#94a3b8; --danger:#ff6b6b;
   }
-  body{
-    margin:0;
-    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
-    background:linear-gradient(180deg,#071422 0%, #081827 100%);
-    color:#e6eef6;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    padding:18px;
-    min-height:100vh;
-    gap:16px;
-  }
+  html,body{ height:100%; margin:0; font-family:Inter,system-ui,Roboto,Arial; background:var(--bg); color:#eaf6fb; -webkit-font-smoothing:antialiased; }
+  .wrap{ min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px; box-sizing:border-box; }
 
-  h2 { text-align:center; margin:0.5em 0; }
+  h1{ font-size:18px; margin:8px 0 0 0; font-weight:600; text-align:center; }
 
-  .controls{
-    display:flex; gap:8px;
-    width:95vw; max-width:1100px;
-  }
-
+  .controls{ width:95vw; max-width:1100px; display:flex; gap:8px; margin-top:6px; }
   input[type="url"]{
-    flex:1; padding:10px 12px; border-radius:8px;
-    border:1px solid rgba(255,255,255,0.06);
+    flex:1; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);
     background:rgba(255,255,255,0.02); color:inherit; outline:none;
   }
+  button{ padding:10px 12px; border-radius:8px; border:0; background:var(--accent); color:#001; font-weight:700; }
 
-  button{
-    padding:10px 14px; border-radius:8px;
-    border:0; background:var(--accent); color:black; font-weight:600;
-  }
-
-  .layout{
-    display:grid;
-    grid-template-columns: 1fr 320px;
-    gap:16px;
-    width:95vw; max-width:1100px;
-    align-items:start;
-  }
-
-  .frameCard, .padCard{
-    background:rgba(255,255,255,0.02);
-    border-radius:12px; padding:12px;
-    border:1px solid rgba(255,255,255,0.03);
-    box-shadow:0 6px 18px rgba(2,6,23,0.6);
-  }
-
-  /* 👇 This defines the iframe size */
-  .frameWrap{
-    width:95vw;
-    height:70vh;
-    max-width:1100px;
-    position:relative;
-    border-radius:8px;
-    overflow:hidden;
-    background:#07121a;
+  /* IFRAME container sized 90vw x 90vh (smartphone focus) */
+  .frameOuter{
+    width:90vw; height:90vh; max-width:1100px; max-height:1200px;
+    border-radius:10px; overflow:hidden; position:relative; background:#04121a;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     display:flex; align-items:center; justify-content:center;
   }
 
-  iframe{ width:100%; height:100%; border:0; background:white; }
-
-  .placeholder{
-    width:100%; height:300px;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+  iframe{
+    width:100%; height:100%; border:0; display:block; background:white;
+    -webkit-user-select:none; user-select:none;
+    touch-action: none; /* let pointer events handle touches */
   }
 
-  .pad{
-    width:220px; height:220px; border-radius:18px;
-    display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border:2px dashed rgba(255,255,255,0.06);
-    user-select:none; -webkit-user-select:none;
-    touch-action:none;
-    position:relative;
-  }
-  .pad.pressed{
-    border-style:solid;
-    box-shadow:0 6px 20px rgba(6,182,212,0.12);
-    transform:translateY(1px);
-  }
+  .emptyNotice{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); padding:16px; text-align:center; pointer-events:none; }
 
-  .padLabel{ text-align:center; color:var(--muted); font-size:14px; }
-  .countdown{ font-size:20px; font-weight:700; color:var(--accent); }
-  .status{ font-size:13px; color:var(--muted); margin-top:8px; }
-  .hint{ font-size:13px; color:var(--muted); margin-top:8px; }
-  .small{ font-size:13px; color:var(--muted); }
-  .warning{ color:#ffb4a2; font-size:13px; }
-  .emptyMsg{ color:var(--muted); font-size:14px; padding:18px; text-align:center; }
+  /* Warning overlay shown when user takes finger out for >0s; blocks interaction until they touch iframe */
+  .overlay{
+    position:absolute; inset:0; background:linear-gradient(180deg, rgba(2,6,10,0.7), rgba(2,6,10,0.85));
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    color:white; padding:18px; box-sizing:border-box; text-align:center;
+  }
+  .overlay.hidden{ display:none; }
+  .overlay .title{ font-size:20px; font-weight:700; color:var(--danger); }
+  .overlay .msg{ color:var(--muted); max-width:90%; }
+  .overlay .count{ font-size:36px; font-weight:800; color:var(--accent); }
 
-  @media (max-width:900px){
-    .layout{ grid-template-columns: 1fr; }
-    .pad{ width:180px; height:180px; }
-    .frameWrap{ width:95vw; height:65vh; }
+  .smallNote{ font-size:12px; color:var(--muted); margin-top:8px; text-align:center; max-width:95vw; }
+
+  @media(min-width:900px){
+    .frameOuter{ width:75vw; height:75vh; }
   }
 </style>
 </head>
 <body>
-  <h2>Secure Quiz Page</h2>
+  <div class="wrap">
+    <h1>Keep touching inside the iframe</h1>
 
-  <div class="controls">
-    <input id="urlInput" type="url" placeholder="Enter a URL (https://example.com)" value="https://example.com">
-    <button id="openBtn">Open</button>
-    <button id="clearBtn" title="Clear iframe">Clear</button>
-  </div>
+    <div class="controls">
+      <input id="urlInput" type="url" placeholder="Enter URL (https://example.com)" value="https://example.com">
+      <button id="openBtn">Open</button>
+      <button id="clearBtn">Clear</button>
+    </div>
 
-  <div class="layout">
-    <div class="frameCard">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <!--<div class="small">Iframe view (clears if pad untouched beyond allowed window)</div>-->
-        <div id="iframeState" class="small">Status: <strong id="stateText">idle</strong></div>
-      </div>
+    <div class="frameOuter" id="frameOuter" aria-live="polite">
+      <div id="emptyNotice" class="emptyNotice">Iframe is empty. Enter a URL and tap Open.</div>
+      <iframe id="theFrame" style="display:none" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
 
-      <div class="frameWrap" id="frameWrap">
-        <div id="emptyNotice" class="emptyMsg">Iframe is empty. Paste a URL and click Open.</div>
-        <iframe id="theFrame" style="display:none;"></iframe>
+      <!-- overlay shown only when user lifts finger / pointer leaves iframe -->
+      <div id="overlay" class="overlay hidden" aria-hidden="true">
+        <div class="title">Keep touching the screen</div>
+        <div class="msg">You moved your finger out of the iframe. Touch inside the iframe within the countdown to continue.</div>
+        <div class="count" id="overlayCountdown">20</div>
+        <div class="msg small" style="font-size:13px; color:var(--muted)">If you don't touch within the countdown the page will be cleared.</div>
       </div>
     </div>
 
-    <div class="padCard">
-      <div class="placeholder">
-        <div id="pad" class="pad" tabindex="0" aria-label="Touch pad">
-          <div>
-            <div id="padIcon">🖐️</div>
-            <div class="padLabel">Place your finger here</div>
-          </div>
-        </div>
-
-        <div class="status">
-          <div>Current phase: <strong id="phaseLabel">—</strong></div>
-          <div>Time until iframe clears (if pad untouched): <span class="countdown" id="countdown">0.0</span>s</div>
-          <div style="margin-top:6px;">Time until Phase 2 starts: <span id="phaseSwitchCountdown">—</span></div>
-        </div>
-
-        <div class="hint">Phase 1 allows 120 s of no-touch; after 2 min Phase 2 allows only 20 s.</div>
-      </div>
-    </div>
+    <div class="smallNote">Note: if the remote site disallows embedding you may see a blank iframe. This UI relies on pointer events on the iframe element — most modern mobile browsers support this.</div>
   </div>
 
 <script>
@@ -152,106 +87,178 @@
   const urlInput = document.getElementById('urlInput');
   const iframe = document.getElementById('theFrame');
   const emptyNotice = document.getElementById('emptyNotice');
-  const stateText = document.getElementById('stateText');
-  const pad = document.getElementById('pad');
-  const countdownEl = document.getElementById('countdown');
-  const phaseLabelEl = document.getElementById('phaseLabel');
-  const phaseSwitchCountdownEl = document.getElementById('phaseSwitchCountdown');
+  const overlay = document.getElementById('overlay');
+  const overlayCountdownEl = document.getElementById('overlayCountdown');
+  const frameOuter = document.getElementById('frameOuter');
 
-  const PHASE1_ALLOW = 180.0;
-  const PHASE2_ALLOW = 20.0;
-  const PHASE_SWITCH_AFTER = 120000;
-  const TICK_MS = 100;
+  const WARNING_SECONDS = 20.0; // 20 seconds to touch back
+  const TICK_MS = 100;          // update interval for countdown
 
-  let currentAllow = PHASE1_ALLOW;
-  let untouchedTimer = PHASE1_ALLOW;
-  let isPressed = false;
-  let tickInterval = null;
-  let openTime = null;
-  let phase = 'idle';
+  let overlayTimer = null;      // interval id for countdown
+  let overlayRemaining = WARNING_SECONDS;
+  let isTouchingInside = false; // currently touching inside iframe
+  let sessionActive = false;
 
-  const setStateText = s => stateText.textContent = s;
-  const setPhaseLabel = p => phaseLabelEl.textContent = p;
-
-  function normalizeUrl(raw){
-    if(!raw) return null;
-    let url = raw.trim();
-    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    try{ new URL(url); return url; }catch{return null;}
+  // Helper: normalize and validate url
+  function normalizeUrl(raw) {
+    if (!raw) return null;
+    let s = raw.trim();
+    if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+    try { new URL(s); return s; } catch (e) { return null; }
   }
 
-  function openUrl(raw){
+  function openUrl(raw) {
     const url = normalizeUrl(raw);
-    if(!url){ alert('Enter a valid URL'); return; }
+    if (!url) { alert('Please enter a valid URL (include protocol)'); return; }
     iframe.src = url;
-    iframe.style.display='block';
-    emptyNotice.style.display='none';
-    openTime = Date.now();
-    phase='phase1'; currentAllow=PHASE1_ALLOW; untouchedTimer=currentAllow;
-    setPhaseLabel('Phase 1 (120 s allowed)');
-    setStateText('loaded');
-    startTicker();
+    iframe.style.display = 'block';
+    emptyNotice.style.display = 'none';
+    sessionActive = true;
+    isTouchingInside = false; // start as not touching until user touches inside
+    hideOverlay(); // ensure overlay hidden
+    stopOverlayTimer();
+    // focus hint: scroll to the iframe on mobile
+    frameOuter.scrollIntoView({behavior:'smooth', block:'center'});
+    // Some browsers require a user interaction within iframe to allow certain things — user must tap inside.
   }
 
-  function clearIframe(){
-    iframe.src='about:blank'; iframe.style.display='none'; emptyNotice.style.display='';
-    phase='cleared'; openTime=null;
-    currentAllow=PHASE1_ALLOW; untouchedTimer=currentAllow;
-    setPhaseLabel('cleared'); setStateText('cleared');
-    stopTicker(); updateUI();
+  function clearIframe() {
+    iframe.src = 'about:blank';
+    iframe.style.display = 'none';
+    emptyNotice.style.display = '';
+    sessionActive = false;
+    isTouchingInside = false;
+    hideOverlay();
+    stopOverlayTimer();
   }
 
-  const updateUI=()=>{
-    countdownEl.textContent = untouchedTimer.toFixed(1);
-    if(phase==='phase1' && openTime){
-      const msLeft=Math.max(0,PHASE_SWITCH_AFTER-(Date.now()-openTime));
-      phaseSwitchCountdownEl.textContent=(msLeft/1000).toFixed(1)+'s';
-    }else phaseSwitchCountdownEl.textContent='—';
-  };
-
-  function startTicker(){
-    if(tickInterval) return;
-    tickInterval=setInterval(()=>{
-      if(phase==='phase1' && openTime && Date.now()-openTime>=PHASE_SWITCH_AFTER){
-        phase='phase2'; currentAllow=PHASE2_ALLOW;
-        if(untouchedTimer>currentAllow) untouchedTimer=currentAllow;
-        setPhaseLabel('Phase 2 (20 s allowed)');
+  // Show overlay and start 20s countdown
+  function showOverlay() {
+    overlayRemaining = WARNING_SECONDS;
+    overlayCountdownEl.textContent = Math.ceil(overlayRemaining);
+    overlay.classList.remove('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+    // start tick
+    if (overlayTimer) clearInterval(overlayTimer);
+    overlayTimer = setInterval(() => {
+      overlayRemaining -= (TICK_MS / 1000);
+      if (overlayRemaining <= 0) {
+        overlayRemaining = 0;
+        overlayCountdownEl.textContent = '0';
+        stopOverlayTimer();
+        // time's up -> clear iframe
+        clearIframe();
+        return;
       }
-      if(!isPressed && (phase==='phase1'||phase==='phase2')){
-        untouchedTimer-=(TICK_MS/1000);
-        if(untouchedTimer<=0){ untouchedTimer=0; clearIframe(); return; }
-      }else if(isPressed){ untouchedTimer=currentAllow; }
-      updateUI();
-    },TICK_MS);
-  }
-  const stopTicker=()=>{ if(tickInterval){ clearInterval(tickInterval); tickInterval=null; } };
-
-  function onPressStart(e){ e.preventDefault(); if(isPressed) return;
-    isPressed=true; pad.classList.add('pressed'); setStateText('pressed');
-    untouchedTimer=currentAllow; updateUI(); startTicker();
-  }
-  function onPressEnd(e){ e.preventDefault(); if(!isPressed) return;
-    isPressed=false; pad.classList.remove('pressed'); setStateText('released'); startTicker();
+      overlayCountdownEl.textContent = Math.ceil(overlayRemaining);
+    }, TICK_MS);
   }
 
-  pad.addEventListener('pointerdown',onPressStart);
-  pad.addEventListener('pointerup',onPressEnd);
-  pad.addEventListener('pointercancel',onPressEnd);
-  pad.addEventListener('pointerleave',e=>{ if(isPressed&&e.buttons===0) onPressEnd(e); });
-  pad.addEventListener('keydown',e=>{ if(e.code==='Space'||e.code==='Enter') onPressStart(e); });
-  pad.addEventListener('keyup',e=>{ if(e.code==='Space'||e.code==='Enter') onPressEnd(e); });
+  function hideOverlay() {
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+    stopOverlayTimer();
+  }
 
-  openBtn.onclick=()=>openUrl(urlInput.value);
-  clearBtn.onclick=()=>clearIframe();
-  urlInput.addEventListener('keydown',e=>{ if(e.key==='Enter') openUrl(urlInput.value); });
+  function stopOverlayTimer() {
+    if (overlayTimer) { clearInterval(overlayTimer); overlayTimer = null; }
+  }
 
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden&&isPressed){ isPressed=false; pad.classList.remove('pressed'); setStateText('hidden'); }
-    startTicker();
+  // Called when we detect the user started touching inside the iframe element
+  function handleInsideTouchStart(ev) {
+    // mark touching inside; cancel overlay if shown
+    isTouchingInside = true;
+    hideOverlay();
+  }
+
+  // Called when pointer leaves / ends on the iframe element
+  function handleInsideTouchEnd(ev) {
+    // mark as not touching; start overlay countdown (only if session active)
+    if (!sessionActive) return;
+    // Note: some pointerend events may occur briefly when user lifts finger but touches again quickly;
+    // we treat any end as a gap and start overlay.
+    isTouchingInside = false;
+    showOverlay();
+  }
+
+  // Attach pointer event listeners on the iframe element.
+  // Modern browsers dispatch pointer events on the iframe element when user interacts with it.
+  // We'll also add touchstart/touchend fallbacks for older devices.
+  iframe.addEventListener('pointerdown', (e) => {
+    // only consider primary buttons/touches
+    if (e.isPrimary === false) return;
+    handleInsideTouchStart(e);
+  }, {passive:false});
+
+  iframe.addEventListener('pointerup', (e) => {
+    handleInsideTouchEnd(e);
   });
 
-  iframe.addEventListener('load',()=>setStateText('iframe loaded'));
-  (function init(){ phase='idle'; setPhaseLabel('idle'); untouchedTimer=PHASE1_ALLOW; updateUI(); setStateText('idle'); })();
+  iframe.addEventListener('pointercancel', (e) => {
+    handleInsideTouchEnd(e);
+  });
+
+  iframe.addEventListener('pointerleave', (e) => {
+    // pointer left the element bounds — treat as ended
+    handleInsideTouchEnd(e);
+  });
+
+  // touch fallbacks (some browsers/situations)
+  iframe.addEventListener('touchstart', (e) => {
+    handleInsideTouchStart(e);
+  }, {passive:true});
+  iframe.addEventListener('touchend', (e) => {
+    handleInsideTouchEnd(e);
+  }, {passive:true});
+  iframe.addEventListener('touchcancel', (e) => {
+    handleInsideTouchEnd(e);
+  }, {passive:true});
+
+  // Also listen for pointer events on the frame container: if the user touches outside the iframe (on surrounding area),
+  // we treat it as not touching the iframe (and show overlay if session active).
+  frameOuter.addEventListener('pointerdown', (e) => {
+    // if the target is the iframe element itself, ignore here (iframe pointerdown handles it)
+    if (e.target === iframe) return;
+    // user touched outside iframe (frame outer area) -> start overlay
+    if (sessionActive) {
+      isTouchingInside = false;
+      showOverlay();
+    }
+  });
+
+  // If overlay is shown and user touches inside the iframe again, pointerdown on iframe will hide overlay (see above).
+  // For accessibility: also allow tapping the overlay area to guide user (but it should not clear overlay unless they touch iframe)
+  // We prevent overlay from swallowing touches to the iframe by keeping overlay inside the same container and hidden when needed.
+
+  // Buttons
+  openBtn.addEventListener('click', () => openUrl(urlInput.value));
+  clearBtn.addEventListener('click', () => clearIframe());
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') openUrl(urlInput.value); });
+
+  // Visibility change: if user switches apps or locks screen while touching, we show overlay on resume
+  document.addEventListener('visibilitychange', () => {
+    if (!sessionActive) return;
+    if (document.hidden) {
+      // paused — treat as finger removed
+      isTouchingInside = false;
+      showOverlay();
+    }
+  });
+
+  // On iframe load, hide overlay and reset state so user must touch again to confirm presence
+  iframe.addEventListener('load', () => {
+    // some cross-origin pages will still fire load even if they block embedding
+    // we reset touch state: require a new touch inside the iframe to continue
+    isTouchingInside = false;
+    hideOverlay();
+    // keep iframe visible — user must touch inside to prevent overlay starting
+  });
+
+  // initial
+  (function init(){
+    clearIframe();
+  })();
+
 })();
 </script>
 </body>
