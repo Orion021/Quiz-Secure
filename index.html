@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Iframe — Phase1 180s then Phase2 20s touch guard</title>
+<title>Iframe with bottom touch bar — 180s → 20s</title>
 <style>
   :root{
     --bg:#071021; --muted:#9fb0bf; --accent:#06b6d4; --danger:#ff6b6b;
   }
-  html,body{ height:100%; margin:0; font-family:Inter,system-ui,Roboto,Arial; background:var(--bg); color:#eaf6fb; }
-  .wrap{ min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px; box-sizing:border-box; }
+  html,body{ height:100%; margin:0; font-family:Inter,system-ui,Roboto,Arial; background:var(--bg); color:#eaf6fb; -webkit-font-smoothing:antialiased; }
+  .wrap{ min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:8px; padding:8px; box-sizing:border-box; }
 
-  h1{ font-size:18px; margin:6px 0; font-weight:600; text-align:center; }
+  h1{ font-size:18px; margin:8px 0 4px; font-weight:600; text-align:center; }
 
   .controls{ width:95vw; max-width:1100px; display:flex; gap:8px; margin-top:6px; }
   input[type="url"]{
@@ -22,17 +22,37 @@
 
   .infoRow{ width:95vw; max-width:1100px; display:flex; justify-content:space-between; color:var(--muted); font-size:13px; }
 
-  /* iframe container sized 90vw x 90vh */
+  /* frame area + touch bar layout:
+     - iframe: 95vw width, 70vh height
+     - touch bar: full width, 20vh height (page-wide)
+     total combined ~90vh (keeps previous large feel) */
   .frameOuter{
-    width:90vw; height:90vh; max-width:1100px; max-height:1200px;
-    border-radius:10px; overflow:hidden; position:relative; background:#04121a;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    display:flex; align-items:center; justify-content:center;
-    touch-action:none;
+    width:95vw; max-width:1100px; position:relative; background:#04121a;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6); border-radius:12px; overflow:hidden;
+    display:flex; flex-direction:column; align-items:stretch;
   }
-  iframe{ width:100%; height:100%; border:0; display:block; background:white; touch-action:none; -webkit-user-select:none; user-select:none; }
+
+  .iframeWrap{
+    height:70vh; min-height:360px; background:#07121a; display:flex; align-items:center; justify-content:center;
+  }
+
+  iframe{
+    width:100%; height:100%; border:0; display:block; background:white;
+    -webkit-user-select:none; user-select:none; touch-action:none;
+  }
 
   .emptyNotice{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); padding:16px; text-align:center; pointer-events:none; }
+
+  /* touch bar */
+  .touchBar{
+    height:20vh; min-height:80px; background:rgba(255,255,255,0.02); display:flex;
+    align-items:center; justify-content:center; gap:12px; padding:12px; box-sizing:border-box;
+    border-top:1px solid rgba(255,255,255,0.03);
+    touch-action:none; /* let pointer events detect touches */
+    user-select:none;
+  }
+  .touchBar .label{ color:var(--muted); text-align:center; font-size:15px; }
+  .touchBar.pressed{ background: linear-gradient(180deg, rgba(6,182,212,0.06), rgba(6,182,212,0.03)); }
 
   /* overlay */
   .overlay{
@@ -46,13 +66,14 @@
   .overlay .count{ font-size:36px; font-weight:800; color:var(--accent); }
 
   @media(min-width:900px){
-    .frameOuter{ width:75vw; height:75vh; }
+    .iframeWrap{ height:60vh; } /* keep desktop balanced */
+    .touchBar{ height:20vh; }
   }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Iframe — Phase1 180s → Phase2 20s touch guard</h1>
+    <h1>Iframe with bottom touch bar — Phase1 180s → Phase2 20s</h1>
 
     <div class="controls">
       <input id="urlInput" type="url" placeholder="Enter URL (https://example.com)">
@@ -66,22 +87,27 @@
     </div>
 
     <div class="frameOuter" id="frameOuter" aria-live="polite">
-      <div id="emptyNotice" class="emptyNotice">Iframe is empty. Enter URL and tap Open.</div>
+      <div class="iframeWrap" id="iframeWrap">
+        <div id="emptyNotice" class="emptyNotice">Iframe is empty. Enter URL and tap Open.</div>
+        <iframe id="theFrame" style="display:none" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
 
-      <iframe id="theFrame" style="display:none" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
+        <div id="overlay" class="overlay hidden" aria-hidden="true">
+          <div class="title">Touch the bar below to continue</div>
+          <div class="msg">You lifted your finger. Touch the bottom touch bar within the countdown to continue using the page.</div>
+          <div class="count" id="overlayCountdown">20</div>
+          <div class="msg small" style="font-size:13px; color:var(--muted)">If you don't touch in time the page will be cleared.</div>
+        </div>
+      </div>
 
-      <div id="overlay" class="overlay hidden" aria-hidden="true">
-        <div class="title">Touch the page to continue</div>
-        <div class="msg">You moved your finger away. Touch inside the page within the countdown to continue using it.</div>
-        <div class="count" id="overlayCountdown">20</div>
-        <div class="msg small" style="font-size:13px; color:var(--muted)">If you don't touch in time the page will be cleared.</div>
+      <div id="touchBar" class="touchBar" role="button" aria-label="Touch bar — keep holding to keep session">
+        <div class="label">Touch & hold here (page-wide)</div>
       </div>
     </div>
   </div>
 
 <script>
 (() => {
-  // elements
+  // Elements
   const openBtn = document.getElementById('openBtn');
   const clearBtn = document.getElementById('clearBtn');
   const urlInput = document.getElementById('urlInput');
@@ -90,23 +116,24 @@
   const frameOuter = document.getElementById('frameOuter');
   const overlay = document.getElementById('overlay');
   const overlayCountdownEl = document.getElementById('overlayCountdown');
+  const touchBar = document.getElementById('touchBar');
   const phaseLabel = document.getElementById('phaseLabel');
   const phaseSwitch = document.getElementById('phaseSwitch');
 
-  // config
-  const PHASE1_MS = 180000; // 180 seconds
-  const PHASE2_ALLOW = 20.0; // 20 seconds
+  // Config
+  const PHASE1_MS = 6000; // 180 seconds
+  const PHASE2_ALLOW = 20.0; // 20 seconds countdown when released in phase2
   const TICK_MS = 100;
 
-  // state
+  // State
   let sessionActive = false;
   let openTime = null;
   let inPhase2 = false;
-  let isTouchingIframe = false;
+  let isPressingBar = false;
   let overlayRemaining = PHASE2_ALLOW;
   let mainInterval = null;
 
-  // helpers
+  // Helpers
   function normalizeUrl(raw){
     if(!raw) return null;
     let s = raw.trim();
@@ -114,19 +141,20 @@
     try { new URL(s); return s; } catch(e) { return null; }
   }
 
-  function setPhaseLabel(p) {
-    phaseLabel.textContent = p;
+  function setPhaseLabelText(t){
+    phaseLabel.textContent = t;
   }
+
   function updatePhaseSwitchUI() {
     if(!sessionActive || !openTime || inPhase2) {
       phaseSwitch.textContent = 'Time until Phase 2: —';
       return;
     }
     const msLeft = Math.max(0, PHASE1_MS - (Date.now() - openTime));
-    phaseSwitch.textContent = 'Time until Phase 2: ' + (msLeft/1000).toFixed(0) + 's';
+    phaseSwitch.textContent = 'Time until Phase 2: ' + Math.ceil(msLeft/1000) + 's';
   }
 
-  // open/clear iframe
+  // Open / clear
   function openUrl() {
     const url = normalizeUrl(urlInput.value || '');
     if(!url) { alert('Please enter a valid URL'); return; }
@@ -136,13 +164,12 @@
     sessionActive = true;
     openTime = Date.now();
     inPhase2 = false;
-    isTouchingIframe = false;
-    overlay.classList.add('hidden');
-    overlay.setAttribute('aria-hidden','true');
+    isPressingBar = false;
     overlayRemaining = PHASE2_ALLOW;
-    setPhaseLabel('Phase 1 (no touch required)');
+    hideOverlay();
+    setPhaseLabelText('Phase 1 (no touch required)');
     startMainInterval();
-    // bring iframe into view on mobile
+    // scroll into view on mobile
     frameOuter.scrollIntoView({behavior:'smooth', block:'center'});
   }
 
@@ -153,16 +180,15 @@
     sessionActive = false;
     openTime = null;
     inPhase2 = false;
-    isTouchingIframe = false;
-    overlay.classList.add('hidden');
-    overlay.setAttribute('aria-hidden','true');
+    isPressingBar = false;
     overlayRemaining = PHASE2_ALLOW;
-    setPhaseLabel('cleared');
+    setPhaseLabelText('cleared');
+    hideOverlay();
     stopMainInterval();
     updatePhaseSwitchUI();
   }
 
-  // show/hide overlay
+  // Overlay control
   function showOverlay() {
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden','false');
@@ -174,109 +200,103 @@
     overlayCountdownEl.textContent = Math.ceil(PHASE2_ALLOW);
   }
 
-  // main interval: handles phase switch and overlay countdown
+  // Main ticker
   function startMainInterval(){
     if (mainInterval) return;
-    mainInterval = setInterval(()=>{
-      if(!sessionActive) return;
+    mainInterval = setInterval(() => {
+      if (!sessionActive) return;
 
-      // Phase switch
-      if(!inPhase2 && openTime && (Date.now() - openTime >= PHASE1_MS)) {
+      // Phase switch logic
+      if (!inPhase2 && openTime && (Date.now() - openTime >= PHASE1_MS)) {
         inPhase2 = true;
         overlayRemaining = PHASE2_ALLOW;
-        setPhaseLabel('Phase 2 (touch required if you release)');
-
-        // If user is NOT touching iframe at the instant phase2 begins -> show overlay immediately
-        if(!isTouchingIframe) {
-          showOverlay();
-        } else {
-          hideOverlay();
-        }
+        setPhaseLabelText('Phase 2 (must hold bar when you release)');
+        // If the user is NOT pressing the bar the instant phase2 begins, show overlay
+        if (!isPressingBar) showOverlay();
+        else hideOverlay();
       }
 
       updatePhaseSwitchUI();
 
-      // Only count down overlay in Phase2 when overlay is visible (i.e., when user is not touching)
-      if(inPhase2 && !isTouchingIframe) {
-        // overlay may already be visible; ensure overlayRemaining decrements
+      // In phase2 when user is not pressing the bar -> countdown
+      if (inPhase2 && !isPressingBar) {
         overlayRemaining -= (TICK_MS / 1000);
-        if(overlayRemaining <= 0) {
-          // time's up -> clear iframe
+        if (overlayRemaining <= 0) {
           overlayRemaining = 0;
           overlayCountdownEl.textContent = '0';
+          // time up -> clear iframe
           clearIframe();
           return;
         } else {
           overlayCountdownEl.textContent = Math.ceil(overlayRemaining);
-          // ensure overlay visible
           showOverlay();
         }
       } else {
-        // if user is touching or not yet in phase2, keep overlay hidden and reset remaining to full allowance
+        // While pressing or in phase1 keep overlay hidden and reset remaining
         overlayRemaining = PHASE2_ALLOW;
-        // don't show overlay in phase1
+        // do not show overlay in phase1
       }
     }, TICK_MS);
   }
   function stopMainInterval(){
-    if(mainInterval) { clearInterval(mainInterval); mainInterval = null; }
+    if (mainInterval) { clearInterval(mainInterval); mainInterval = null; }
   }
 
-  // Event handling on iframe element:
-  // - pointerdown on iframe -> user touched inside -> hide overlay and mark isTouchingIframe = true
-  // - pointerup / pointercancel / pointerleave -> user lifted or left -> mark false; if in phase2 start overlay countdown (handled by ticker)
-  // Note: pointer events on iframe element rely on modern browsers. Add touch fallbacks.
-  function onIframePointerDown(e) {
-    // only primary
+  // Touch bar pointer handlers
+  function onBarPointerDown(e) {
     if (e.isPrimary === false) return;
-    isTouchingIframe = true;
+    // mark pressing
+    isPressingBar = true;
+    touchBar.classList.add('pressed');
     hideOverlay();
+    // prevent accidental text selection
+    e.preventDefault();
   }
-  function onIframePointerUp(e) {
-    // pointer released (possibly still inside element). Mark as not touching.
-    isTouchingIframe = false;
-    // If phase2 active, overlay will be shown immediately by ticker (or next tick)
+  function onBarPointerUp(e) {
+    if (e.isPrimary === false) return;
+    isPressingBar = false;
+    touchBar.classList.remove('pressed');
+    // If in phase2 the ticker will begin countdown next tick
   }
-  function onIframePointerCancel(e) { isTouchingIframe = false; }
-  function onIframePointerLeave(e) { isTouchingIframe = false; }
+  function onBarPointerCancel(e) {
+    isPressingBar = false;
+    touchBar.classList.remove('pressed');
+  }
 
-  // Attach pointer and touch events
-  iframe.addEventListener('pointerdown', onIframePointerDown, {passive:true});
-  iframe.addEventListener('pointerup', onIframePointerUp, {passive:true});
-  iframe.addEventListener('pointercancel', onIframePointerCancel, {passive:true});
-  iframe.addEventListener('pointerleave', onIframePointerLeave, {passive:true});
-  // touch fallback
-  iframe.addEventListener('touchstart', (e)=>{ isTouchingIframe = true; hideOverlay(); }, {passive:true});
-  iframe.addEventListener('touchend', (e)=>{ isTouchingIframe = false; }, {passive:true});
-  iframe.addEventListener('touchcancel', (e)=>{ isTouchingIframe = false; }, {passive:true});
-
-  // If the user touches the overlay itself we do nothing (they must touch the iframe)
-  overlay.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive:false});
+  // Attach pointer events (works for touch + mouse + stylus)
+  touchBar.addEventListener('pointerdown', onBarPointerDown, {passive:false});
+  window.addEventListener('pointerup', onBarPointerUp, {passive:true});
+  touchBar.addEventListener('pointercancel', onBarPointerCancel, {passive:true});
+  // Add touch fallbacks
+  touchBar.addEventListener('touchstart', (e) => { isPressingBar = true; touchBar.classList.add('pressed'); }, {passive:true});
+  touchBar.addEventListener('touchend', (e) => { isPressingBar = false; touchBar.classList.remove('pressed'); }, {passive:true});
+  touchBar.addEventListener('touchcancel', (e) => { isPressingBar = false; touchBar.classList.remove('pressed'); }, {passive:true});
 
   // Buttons
   openBtn.addEventListener('click', openUrl);
   clearBtn.addEventListener('click', clearIframe);
-  urlInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') openUrl(); });
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') openUrl(); });
 
-  // Visibility change: if user leaves app, treat as release (so overlay may show when they return)
+  // If overlay is clicked we consume it (user must tap the bar)
+  overlay.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+  // If the document visibility changes (user switches apps), treat as release while hidden
   document.addEventListener('visibilitychange', () => {
-    if(!sessionActive) return;
-    if(document.hidden) {
-      isTouchingIframe = false;
+    if (!sessionActive) return;
+    if (document.hidden) {
+      isPressingBar = false;
+      touchBar.classList.remove('pressed');
     }
   });
 
-  // When iframe loads, we require fresh touch only after phase2 starts. For phase1 nothing changes.
+  // iframe load resets nothing; user interaction with iframe is not trusted (cross-origin)
   iframe.addEventListener('load', () => {
-    // Reset overlayRemaining in case previously altered
-    overlayRemaining = PHASE2_ALLOW;
-    // Do not force overlay in phase1
-    if(!inPhase2) hideOverlay();
+    // do nothing special; user must press the bottom bar in Phase2
   });
 
   // init
   (function init(){
-    setPhaseLabel('idle');
+    setPhaseLabelText('idle');
     updatePhaseSwitchUI();
   })();
 
