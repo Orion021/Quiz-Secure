@@ -1,219 +1,375 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quiz Guard — Load + Fullscreen</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz Guard — One Miss Limit</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
 <style>
-  :root{--bg:#071022;--accent:#06b6d4;--danger:#fb7185;--muted:#94a3b8;--text:#e6eef6}
-  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#081426);color:var(--text);font-family:Inter,system-ui,Arial;overflow:hidden}
-  .app{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
-  header{height:10vh;min-height:64px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;box-sizing:border-box;background:rgba(255,255,255,0.02)}
-  .title h1{margin:0;font-size:1.05rem}.timers{display:flex;gap:14px;align-items:center}
-  .timer{padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.01);min-width:110px;text-align:center}
-  .timer .label{font-size:0.72rem;color:var(--muted)}.timer .value{font-weight:700;font-size:0.95rem}
-  main{width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px;box-sizing:border-box}
-  .url-row{width:90vw;max-width:980px;display:flex;gap:8px;align-items:center}
-  .url-row input{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:1rem}
-  .url-row button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#022;cursor:pointer;font-weight:700}
-  .stage{width:90vw;max-width:980px;display:flex;flex-direction:column;align-items:center;gap:10px}
-  .frame-wrap{width:100%;height:70vh;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.03);position:relative}
-  iframe{width:100%;height:100%;border-radius:12px;border:0;background:white}
-  .touch-wrap{width:100%;display:flex;justify-content:center}
-  .touch-pad{width:90vw;max-width:980px;height:15vh;min-height:64px;border-radius:14px;border:10px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;box-sizing:border-box;touch-action:none;user-select:none}
-  .touch-pad.active{background:linear-gradient(90deg,var(--accent),#48d7e6);border-color:rgba(6,182,212,0.85);box-shadow:0 6px 30px rgba(6,182,212,0.12)}
-  .touch-pad.blink{animation:blink 1s infinite;border-color:var(--danger);box-shadow:0 0 18px rgba(251,113,133,0.12)}
-  @keyframes blink{0%{opacity:1}50%{opacity:0.35}100%{opacity:1}}
-  .note{font-size:0.82rem;color:var(--muted);max-width:980px;text-align:center}
-  .fs-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.82);z-index:9999;color:#fff;text-align:center;padding:20px}
-  .fs-overlay h2{margin:0 0 12px 0;font-size:1.2rem}
-  .fs-overlay p{margin:0 0 14px 0;color:rgba(255,255,255,0.85)}
-  .fs-overlay button{background:var(--accent);border:0;padding:12px 18px;border-radius:10px;font-weight:700;color:#022;cursor:pointer}
-  @media (max-width:720px){iframe{width:96vw}.touch-pad{width:96vw}.url-row{width:96vw}}
+  :root {
+    --bg: #1e1e1e;
+    --panel: #2a2a2a;
+    --accent: #06b6d4;
+    --danger: #fb7185;
+    --text: #f1f1f1;
+    --muted: #999;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Roboto', sans-serif;
+    overflow: hidden;
+  }
+
+  .app {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .quiz-layout {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .quiz-area {
+    flex: 0 0 90%;
+    height: 95%;
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 3px solid #000;
+    box-sizing: border-box;
+    border-radius: 10px 0 0 10px;
+  }
+
+  iframe {
+    width: 98%;
+    height: 98%;
+    border: 0;
+    border-radius: 8px;
+    background: #fff;
+    display: block;
+  }
+
+  .touch-bar {
+    flex: 0 0 10%;
+    height: 95%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--panel);
+    border: 10px solid var(--danger);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    padding: 20px 0;
+  }
+
+  .touch-bar.blink {
+    animation: blinkBorder 1s infinite;
+  }
+  @keyframes blinkBorder {
+    0%,100% { border-color: var(--danger); }
+    50% { border-color: transparent; }
+  }
+
+  .touch-bar.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    animation: none;
+  }
+
+  .timer {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-top: 40px;
+    user-select: none;
+  }
+
+  .touch-bar.active .timer {
+    display: none;
+  }
+
+  .touch-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 40px;
+    user-select: none;
+  }
+
+  .url-row {
+    width: 90vw;
+    max-width: 800px;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .url-row input {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #2a2a2a;
+    color: var(--text);
+  }
+
+  .url-row button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .note {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .fs-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 9999;
+  }
+
+  .fs-overlay button {
+    margin-top: 12px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
 </style>
 </head>
 <body>
-  <!-- overlay used when fullscreen is required (appears if user exited FS or FS blocked) -->
-  <div id="fsOverlay" class="fs-overlay" style="display:none" aria-hidden="true">
-    <h2>Tap or click to enter fullscreen</h2>
-    <p>The quiz runs in fullscreen for best experience. Click to re-enter fullscreen.</p>
-    <button id="fsEnterBtn" type="button">Enter Fullscreen</button>
+
+<!-- Fullscreen prompt -->
+<div id="fsOverlay" class="fs-overlay" style="display:none">
+  <h2>Tap or click to enter fullscreen</h2>
+  <p>The quiz runs best in fullscreen mode.</p>
+  <button id="fsEnterBtn">Enter Fullscreen</button>
+</div>
+
+<div class="app">
+  <div id="stage">
+    <div id="initialUrl" class="url-row">
+      <input id="urlInput" type="url" placeholder="https://example.com/quiz">
+      <button id="loadBtn">Load Quiz</button>
+    </div>
+    <div class="note">Enter your quiz URL and start fullscreen.</div>
   </div>
-
-  <div class="app" id="app">
-    <header>
-      <div class="title"><h1>Quiz Guard</h1><div style="font-size:0.8rem;color:var(--muted)">Load → fullscreen → monitor</div></div>
-      <div class="timers">
-        <div class="timer"><div class="label">Phase</div><div id="phase" class="value">idle</div></div>
-        <div class="timer"><div class="label">Timer</div><div id="countdown" class="value">--:--</div></div>
-      </div>
-    </header>
-
-    <main>
-      <div id="stage" class="stage" aria-live="polite">
-        <div id="initialUrl" class="url-row">
-          <input id="urlInput" type="url" placeholder="https://example.com/quiz" />
-          <button id="loadBtn" type="button">Load & Fullscreen</button>
-        </div>
-      </div>
-
-      <div class="note">
-        After loading the quiz: 2:30 free phase → 20 s monitoring phase. The 20 s countdown runs only while the hold button is NOT touched. Touching resets & freezes at 20s.
-      </div>
-    </main>
-  </div>
+</div>
 
 <script>
 (function(){
-  // elements
   const fsOverlay = document.getElementById('fsOverlay');
   const fsEnterBtn = document.getElementById('fsEnterBtn');
   const stage = document.getElementById('stage');
-  const initialUrlRow = document.getElementById('initialUrl');
-  const urlInput = document.getElementById('urlInput');
   const loadBtn = document.getElementById('loadBtn');
-  const phaseEl = document.getElementById('phase');
-  const countdownEl = document.getElementById('countdown');
+  const urlInput = document.getElementById('urlInput');
 
-  // state & timers
-  let iframeEl=null, touchPad=null;
-  let mainTimer=null, monitorTimer=null;
-  const MAIN_SECONDS = 150, MONITOR_MS = 20000;
-  let mainRemaining=0, cdMs=MONITOR_MS;
-  let phase2=false, isTouching=false;
+  let iframeEl, touchBar, timerDisplay;
+  let mainTimer, monitorTimer;
+  const MAIN_SECONDS = 150;     // Phase 1 duration
+  const MONITOR_MS = 20000;    // 20s monitoring timeout
+  let mainRemaining = 0, cdMs = MONITOR_MS;
+  let phase2 = false, isTouching = false;
+  let missCount = 0; // 🔹 Tracks how many 20s timeouts have occurred
 
-  // ---- fullscreen helpers ----
-  function requestFullscreen() {
-    const el = document.documentElement;
-    if (el.requestFullscreen) return el.requestFullscreen();
-    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
-    if (el.msRequestFullscreen) return el.msRequestFullscreen();
-    return Promise.reject(new Error('Fullscreen unsupported'));
+  // Request fullscreen
+  function requestFullscreen(){
+    const el=document.documentElement;
+    if(el.requestFullscreen) return el.requestFullscreen();
+    if(el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+    return Promise.reject();
   }
 
-  function showFsOverlay() {
-    fsOverlay.style.display = 'flex';
-    fsOverlay.setAttribute('aria-hidden','false');
-    fsEnterBtn.focus();
-  }
-  function hideFsOverlay() {
-    fsOverlay.style.display = 'none';
-    fsOverlay.setAttribute('aria-hidden','true');
-  }
-
-  // If fullscreen is lost, show overlay so user can re-enter via gesture
-  document.addEventListener('fullscreenchange', ()=> {
-    const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-    if (!inFs) showFsOverlay();
-    else hideFsOverlay();
+  // Fullscreen overlay logic
+  document.addEventListener('fullscreenchange',()=>{
+    fsOverlay.style.display = document.fullscreenElement ? 'none' : 'flex';
   });
+  fsEnterBtn.onclick=()=>requestFullscreen().then(()=>fsOverlay.style.display='none');
 
-  fsEnterBtn.addEventListener('click', (e)=>{
-    e.preventDefault();
-    requestFullscreen().then(hideFsOverlay).catch(()=> { showFsOverlay(); });
-  });
+  // Utility: Format time
+  function fmtSecs(s){ if(s<0)s=0; return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+  function fmtMs(ms){ return fmtSecs(Math.ceil(ms/1000));}
+  function setCountdown(v){ if(timerDisplay) timerDisplay.textContent=v; }
 
-  fsOverlay.addEventListener('click', (e)=>{
-    // clicking overlay triggers button (user gesture)
-    if (e.target === fsOverlay) { fsEnterBtn.click(); }
-  });
+  // Render main layout
+  function renderUI(url){
+    stage.innerHTML='';
+    const layout=document.createElement('div');
+    layout.className='quiz-layout';
 
-  // ---- Quiz-guard logic (unchanged behavior) ----
-  function setPhase(v){ phaseEl.textContent = v; }
-  function setCountdown(v){ countdownEl.textContent = v; }
-  function fmtSecs(s){ if(s<0) s=0; return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
-  function fmtMs(ms){ return fmtSecs(Math.ceil(ms/1000)); }
-
-  function renderIframe(url){
-    stage.innerHTML = '';
-    const frameWrap = document.createElement('div'); frameWrap.className='frame-wrap';
-    iframeEl = document.createElement('iframe');
-    iframeEl.src = url;
+    // Left: Quiz iframe
+    const quiz=document.createElement('div');
+    quiz.className='quiz-area';
+    iframeEl=document.createElement('iframe');
+    iframeEl.src=url;
     iframeEl.setAttribute('sandbox','allow-scripts allow-forms allow-same-origin allow-popups');
-    frameWrap.appendChild(iframeEl);
-    stage.appendChild(frameWrap);
+    quiz.appendChild(iframeEl);
 
-    const touchWrap = document.createElement('div'); touchWrap.className='touch-wrap';
-    touchPad = document.createElement('div'); touchPad.className='touch-pad';
-    touchPad.setAttribute('role','button'); touchPad.setAttribute('tabindex','0');
-    touchWrap.appendChild(touchPad);
-    stage.appendChild(touchWrap);
+    // Right: Touch bar
+    const touch=document.createElement('div');
+    touch.className='touch-bar';
+    touch.innerHTML='<div class="timer" id="timerDisplay">--:--</div><div class="touch-text">Touch Here</div>';
+    touchBar=touch;
+    timerDisplay=touch.querySelector('#timerDisplay');
 
-    stage.appendChild(initialUrlRow);
-    bindTouchPad();
-    iframeEl.addEventListener('load', ()=>{ if(!mainTimer) startMain(); });
-    setTimeout(()=>{ if(!mainTimer) startMain(); }, 1200);
+    layout.append(quiz,touch);
+    stage.append(layout);
+
+    bindTouch();
+    iframeEl.onload=()=>{ if(!mainTimer) startMain(); };
+    setTimeout(()=>{ if(!mainTimer) startMain(); },1000);
   }
 
+  // Phase 1: Active (before monitoring)
   function startMain(){
-    setPhase('active'); mainRemaining = MAIN_SECONDS; setCountdown(fmtSecs(mainRemaining));
-    mainTimer = setInterval(()=> {
-      mainRemaining--; setCountdown(fmtSecs(mainRemaining));
-      if(mainRemaining <= 0){ clearInterval(mainTimer); mainTimer = null; startMonitor(); }
-    }, 1000);
+    mainRemaining=MAIN_SECONDS;
+    setCountdown(fmtSecs(mainRemaining));
+    mainTimer=setInterval(()=>{
+      mainRemaining--;
+      setCountdown(fmtSecs(mainRemaining));
+      if(mainRemaining<=0){ clearInterval(mainTimer); mainTimer=null; startMonitor(); }
+    },1000);
   }
 
+  // Phase 2: Monitoring touch
   function startMonitor(){
-    phase2 = true; setPhase('monitoring'); cdMs = MONITOR_MS; setCountdown(fmtMs(cdMs));
-    if(touchPad) touchPad.classList.add('blink');
-    let last = Date.now();
-    monitorTimer = setInterval(()=> {
-      const now = Date.now(); const delta = now - last; last = now;
-      if(isTouching) cdMs = MONITOR_MS; else cdMs = Math.max(0, cdMs - delta);
+    phase2=true;
+    missCount=0; // Reset miss count when starting monitoring
+    cdMs=MONITOR_MS;
+    setCountdown(fmtMs(cdMs));
+    touchBar.classList.add('blink');
+    let last=Date.now();
+
+    monitorTimer=setInterval(()=>{
+      const now=Date.now();
+      const delta=now-last;
+      last=now;
+      if(isTouching) cdMs=MONITOR_MS;
+      else cdMs=Math.max(0,cdMs-delta);
       setCountdown(fmtMs(cdMs));
-      if(touchPad){ if(isTouching) touchPad.classList.remove('blink'); else touchPad.classList.add('blink'); }
-      if(cdMs <= 0){ clearInterval(monitorTimer); monitorTimer = null; clearIframe(); }
-    }, 100);
+
+      // Timer reached 0
+      if(cdMs<=0){
+        clearInterval(monitorTimer);
+        monitorTimer=null;
+        handleTimeout(); // 🔹 Handle first/second miss
+      }
+    },100);
   }
 
-  function clearIframe(){
-    if(iframeEl) try{ iframeEl.src = 'about:blank'; }catch(e){}
-    stage.innerHTML = '<div class="frame-wrap"><div style="color:var(--muted);text-align:center;padding:16px">Iframe cleared — no touch for 20s.</div></div>';
-    stage.appendChild(initialUrlRow);
-    stopAll(); setPhase('idle'); setCountdown('--:--');
+  // 🔹 Handles "missed touch" events (20s no touch)
+  function handleTimeout(){
+    missCount++;
+    if(missCount === 1){
+      // First miss allowed — reset timer and continue
+      flashWarning(); // Visual warning feedback
+      cdMs = MONITOR_MS;
+      setCountdown(fmtMs(cdMs));
+      let last = Date.now();
+      monitorTimer = setInterval(()=>{
+        const now = Date.now();
+        const delta = now - last;
+        last = now;
+        if(isTouching) cdMs = MONITOR_MS;
+        else cdMs = Math.max(0, cdMs - delta);
+        setCountdown(fmtMs(cdMs));
+        if(cdMs <= 0){
+          clearInterval(monitorTimer);
+          monitorTimer = null;
+          handleTimeout(); // Call again for second miss
+        }
+      },100);
+    } else {
+      // Second miss → clear quiz permanently
+      clearQuiz();
+    }
   }
 
-  function stopAll(){ if(mainTimer){ clearInterval(mainTimer); mainTimer=null; } if(monitorTimer){ clearInterval(monitorTimer); monitorTimer=null; } phase2=false; isTouching=false; cdMs=MONITOR_MS; }
-
-  function bindTouchPad(){
-    if(!touchPad) return;
-    const start = (e)=>{ if(!phase2) return; isTouching=true; cdMs = MONITOR_MS; touchPad.classList.add('active'); if(e && e.preventDefault) e.preventDefault(); };
-    const end = ()=>{ if(!phase2) return; isTouching=false; touchPad.classList.remove('active'); };
-    touchPad.addEventListener('mousedown', start); window.addEventListener('mouseup', end);
-    touchPad.addEventListener('touchstart', start, {passive:false}); touchPad.addEventListener('touchend', end, {passive:true}); touchPad.addEventListener('touchcancel', end, {passive:true});
-    touchPad.addEventListener('keydown', (e)=>{ if((e.key===' '||e.key==='Enter')&&phase2){ e.preventDefault(); if(!isTouching) start(e); }});
-    touchPad.addEventListener('keyup', (e)=>{ if((e.key===' '||e.key==='Enter')&&phase2) end(e); });
-    touchPad.addEventListener('click', ()=>{ if(phase2) cdMs = MONITOR_MS; });
+  // 🔸 Quick red flash to warn about first miss
+  function flashWarning(){
+    touchBar.style.borderColor = 'var(--danger)';
+    touchBar.style.boxShadow = '0 0 20px var(--danger)';
+    setTimeout(()=>{ touchBar.style.boxShadow='none'; },1500);
   }
 
-  // ---- Combined Load + Fullscreen (user gesture) ----
-  loadBtn.addEventListener('click', (ev)=>{
-    ev && ev.preventDefault && ev.preventDefault();
-    const raw = urlInput.value.trim();
-    if(!raw) return alert('Please enter a URL');
-    const url = (raw.startsWith('http://') || raw.startsWith('https://')) ? raw : ('https://' + raw);
+  // Clear quiz after timeout
+  function clearQuiz(){
+    if(iframeEl) iframeEl.src='about:blank';
+    stage.innerHTML='<div style="color:#999;text-align:center;padding:20px;">Quiz cleared — missed twice (20s each).</div>';
+    stopAll();
+  }
 
-    // First request fullscreen (user gesture) then load iframe — do both inside same click handler
+  function stopAll(){
+    if(mainTimer) clearInterval(mainTimer);
+    if(monitorTimer) clearInterval(monitorTimer);
+    mainTimer=null; monitorTimer=null; phase2=false; isTouching=false; cdMs=MONITOR_MS;
+  }
+
+  // Touch handlers
+  function bindTouch(){
+    const start=(e)=>{
+      if(!phase2)return;
+      isTouching=true; cdMs=MONITOR_MS;
+      touchBar.classList.add('active'); touchBar.classList.remove('blink');
+      e?.preventDefault?.();
+    };
+    const end=()=>{
+      if(!phase2)return;
+      isTouching=false;
+      touchBar.classList.remove('active'); touchBar.classList.add('blink');
+    };
+    touchBar.addEventListener('mousedown',start);
+    window.addEventListener('mouseup',end);
+    touchBar.addEventListener('touchstart',start,{passive:false});
+    touchBar.addEventListener('touchend',end,{passive:true});
+    touchBar.addEventListener('touchcancel',end,{passive:true});
+  }
+
+  // Load quiz button
+  loadBtn.onclick=(ev)=>{
+    ev.preventDefault();
+    const raw=urlInput.value.trim();
+    if(!raw)return alert('Please enter a URL');
+    const url=(raw.startsWith('http://')||raw.startsWith('https://'))?raw:('https://'+raw);
     requestFullscreen()
-      .then(()=> {
-        hideFsOverlay(); // make overlay invisible if any
-        stopAll();
-        renderIframe(url);
-      })
-      .catch(()=> {
-        // If fullscreen request rejected or blocked, still load iframe but show overlay so user can retry FS
-        stopAll();
-        renderIframe(url);
-        showFsOverlay();
-      });
-  });
+      .then(()=>{ fsOverlay.style.display='none'; stopAll(); renderUI(url); })
+      .catch(()=>{ stopAll(); renderUI(url); fsOverlay.style.display='flex'; });
+  };
 
-  // If the page loads and the browser is already fullscreen, hide overlay
-  document.addEventListener('DOMContentLoaded', ()=> {
-    const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-    if(!inFs) { /* overlay hidden by default; we will show only if needed */ }
-    else hideFsOverlay();
-  });
 })();
 </script>
 </body>
